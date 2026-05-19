@@ -11,7 +11,8 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/railsimulatornet/ugreen-nas-lyrics-downloader
+  GHCR_IMAGE: ghcr.io/railsimulatornet/ugreen-nas-lyrics-downloader
+  DOCKERHUB_IMAGE: railsimulatornet/ugreen-nas-lyrics-downloader
 
 jobs:
   docker:
@@ -28,16 +29,24 @@ jobs:
           username: Railsimulatornet
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: |
+            ${{ env.GHCR_IMAGE }}
+            ${{ env.DOCKERHUB_IMAGE }}
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=latest
 
-      - name: Build and push Docker image
+      - name: Build and push Docker images
         uses: docker/build-push-action@v6
         with:
           context: ./UGREEN-NAS-Lyrics-Downloader
