@@ -1,2 +1,2 @@
-mutagen==1.47.0
+﻿mutagen==1.47.0
 requests==2.33.0
