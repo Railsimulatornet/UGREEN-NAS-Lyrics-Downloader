@@ -29,7 +29,6 @@ from mutagen.oggvorbis import OggVorbis
 
 APP_NAME = "UGREEN NAS Lyrics Downloader"
 APP_VERSION = "1.0.0"
-SCRIPT_COPYRIGHT = "Copyright (c) 2026 Railsimulatornet"
 LRCLIB_BASE_URL = "https://lrclib.net/"
 
 
@@ -445,7 +444,7 @@ def save_report(config: Config, started_at: float, results: list[FileResult]) ->
     report = {
         "app": APP_NAME,
         "version": APP_VERSION,
-        "copyright": SCRIPT_COPYRIGHT,
+        "copyright": "Copyright (c) 2026 Roman Glos",
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(started_at)),
         "finished_at": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime()),
         "music_dir": str(config.music_dir),
@@ -480,7 +479,7 @@ def run_once(config: Config) -> int:
     processed = 0
 
     logging.info("%s %s gestartet", APP_NAME, APP_VERSION)
-    logging.info(SCRIPT_COPYRIGHT)
+    logging.info("Copyright (c) 2026 Roman Glos")
     logging.info("Musikordner: %s", config.music_dir)
     logging.info("Erweiterungen: %s", ", ".join(sorted(config.audio_extensions)))
 
@@ -523,3 +522,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
