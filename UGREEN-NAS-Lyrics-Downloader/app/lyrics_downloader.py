@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 UGREEN NAS Lyrics Downloader
-Copyright (c) 2026 Roman Glos
+Copyright (c) 2026 Railsimulatornet
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from mutagen.oggvorbis import OggVorbis
 
 APP_NAME = "UGREEN NAS Lyrics Downloader"
 APP_VERSION = "1.0.0"
-SCRIPT_COPYRIGHT = "Copyright (c) 2026 Roman Glos"
+SCRIPT_COPYRIGHT = "Copyright (c) 2026 Railsimulatornet"
 LRCLIB_BASE_URL = "https://lrclib.net/"
 
 
@@ -151,7 +151,7 @@ def normalize_text(value: str) -> str:
     value = "".join(ch for ch in value if not unicodedata.combining(ch))
     value = value.lower()
     value = re.sub(r"\([^)]*\)|\[[^]]*]", " ", value)
-    value = re.sub(r"[^a-z0-9äöüß]+", " ", value)
+    value = re.sub(r"[^a-z0-9Ã¤Ã¶Ã¼ÃŸ]+", " ", value)
     return re.sub(r"\s+", " ", value).strip()
 
 
@@ -207,7 +207,7 @@ def read_track_info(path: Path) -> TrackInfo | None:
         duration = None
 
     if not title or not artist:
-        logging.info("Übersprungen, Titel oder Künstler fehlt: %s", path)
+        logging.info("Ãœbersprungen, Titel oder KÃ¼nstler fehlt: %s", path)
         return None
 
     return TrackInfo(
@@ -298,15 +298,15 @@ def find_lyrics(session: requests.Session, track: TrackInfo) -> dict[str, Any] |
         if exact:
             return exact
     except requests.HTTPError as exc:
-        logging.debug("Exakte LRCLIB-Suche fehlgeschlagen für %s - %s: %s", track.artist, track.title, exc)
+        logging.debug("Exakte LRCLIB-Suche fehlgeschlagen fÃ¼r %s - %s: %s", track.artist, track.title, exc)
     except requests.RequestException as exc:
-        logging.warning("LRCLIB-Anfrage fehlgeschlagen für %s - %s: %s", track.artist, track.title, exc)
+        logging.warning("LRCLIB-Anfrage fehlgeschlagen fÃ¼r %s - %s: %s", track.artist, track.title, exc)
         return None
 
     try:
         return lrclib_search_fallback(session, track)
     except requests.RequestException as exc:
-        logging.warning("LRCLIB-Fallback fehlgeschlagen für %s - %s: %s", track.artist, track.title, exc)
+        logging.warning("LRCLIB-Fallback fehlgeschlagen fÃ¼r %s - %s: %s", track.artist, track.title, exc)
         return None
 
 
@@ -347,7 +347,7 @@ def plain_to_lrc(plain: str, track: TrackInfo) -> str:
 def write_sidecar_lrc(path: Path, content: str, config: Config) -> Path:
     lrc_path = path.with_suffix(".lrc")
     if config.dry_run:
-        logging.info("DRY_RUN: Würde LRC schreiben: %s", lrc_path)
+        logging.info("DRY_RUN: WÃ¼rde LRC schreiben: %s", lrc_path)
         return lrc_path
     lrc_path.write_text(content, encoding="utf-8", newline="\n")
     return lrc_path
@@ -355,7 +355,7 @@ def write_sidecar_lrc(path: Path, content: str, config: Config) -> Path:
 
 def write_embedded_tags(path: Path, plain_lyrics: str, synced_lyrics: str | None, config: Config) -> None:
     if config.dry_run:
-        logging.info("DRY_RUN: Würde Tags schreiben: %s", path)
+        logging.info("DRY_RUN: WÃ¼rde Tags schreiben: %s", path)
         return
 
     suffix = path.suffix.lower()
@@ -396,7 +396,7 @@ def process_file(path: Path, session: requests.Session, config: Config) -> FileR
 
     track = read_track_info(path)
     if track is None:
-        return FileResult(str(path), "skipped", "Metadaten unvollständig")
+        return FileResult(str(path), "skipped", "Metadaten unvollstÃ¤ndig")
 
     logging.info("Suche Lyrics: %s - %s", track.artist, track.title)
     lyrics = find_lyrics(session, track)
@@ -460,7 +460,7 @@ def save_report(config: Config, started_at: float, results: list[FileResult]) ->
         "results": [asdict(result) for result in results],
     }
     if config.dry_run:
-        logging.info("DRY_RUN: Würde Bericht speichern: %s", config.report_path)
+        logging.info("DRY_RUN: WÃ¼rde Bericht speichern: %s", config.report_path)
         return
     config.report_path.parent.mkdir(parents=True, exist_ok=True)
     config.report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -502,7 +502,7 @@ def run_once(config: Config) -> int:
     save_report(config, started_at, results)
     written = sum(1 for item in results if item.status in {"written", "dry_run"})
     errors = sum(1 for item in results if item.status == "error")
-    logging.info("Fertig. Dateien geprüft: %s, geschrieben: %s, Fehler: %s", len(results), written, errors)
+    logging.info("Fertig. Dateien geprÃ¼ft: %s, geschrieben: %s, Fehler: %s", len(results), written, errors)
     return 1 if errors else 0
 
 
@@ -516,7 +516,7 @@ def main() -> int:
     exit_code = 0
     while True:
         exit_code = run_once(config)
-        logging.info("Nächster Scan in %s Sekunden", config.scan_interval_seconds)
+        logging.info("NÃ¤chster Scan in %s Sekunden", config.scan_interval_seconds)
         time.sleep(config.scan_interval_seconds)
     return exit_code
 
