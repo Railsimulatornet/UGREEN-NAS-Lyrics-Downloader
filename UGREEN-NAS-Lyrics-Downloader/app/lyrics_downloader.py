@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python3
 """
 UGREEN NAS Lyrics Downloader
-Copyright (c) 2026 Railsimulatornet
+Copyright (c) 2026 Roman Glos
 """
 
 from __future__ import annotations
@@ -522,4 +522,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
