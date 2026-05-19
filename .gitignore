@@ -1,0 +1,25 @@
+﻿# Office source documents
+*.docx
+
+# Local environment files
+.env
+**/.env
+!**/.env.example
+
+# Windows / Editor files
+Thumbs.db
+desktop.ini
+~$*
+*.tmp
+*.bak
+
+# Logs / runtime
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local IDE settings
+.vscode/
+.idea/

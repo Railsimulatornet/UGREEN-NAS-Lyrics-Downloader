@@ -1,0 +1,15 @@
+# Runtime data
+reports/*.json
+reports/*.log
+
+# Local configuration backups
+*.bak
+*.tmp
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS/editor files
+.DS_Store
+Thumbs.db
