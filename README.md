@@ -201,19 +201,13 @@ Standardmäßig werden folgende Erweiterungen verarbeitet:
 
 Die Liste kann über `AUDIO_EXTENSIONS` in der `.env` angepasst werden.
 
-## Lizenz und Nutzung
+## Lizenz
 
-Dieses Projekt steht unter der **PolyForm Noncommercial License 1.0.0**.
-
-- Nichtkommerzielle Nutzung ist erlaubt
-- Kommerzielle Nutzung ist nicht erlaubt
-- Für kommerzielle Nutzung ist vorab eine schriftliche Genehmigung des Autors erforderlich
-
-Bei Interesse an einer kommerziellen Nutzung kontaktiere mich bitte vorab.
+Dieses Projekt steht unter der **MIT License**.
 
 ## Dokumentation
 
-Das ausführliche deutsch-englische Handbuch liegt separat als DOCX/PDF im Release-Paket bei.
+Das ausführliche deutsch-englische Handbuch liegt als PDF im Release-Paket bei.
 
 ## Version
 
@@ -226,12 +220,8 @@ The **UGREEN NAS Lyrics Downloader** is a lightweight Docker package for UGREEN 
 
 This project is intended to help test lyrics detection in the UGREEN Music app. Runtime settings are configured through `.env`, and the package can be deployed through the UGREEN Docker App or with Docker Compose.
 
-This project is licensed under the **PolyForm Noncommercial License 1.0.0**.
-
-- Noncommercial use is allowed
-- Commercial use is not allowed
-- Commercial use requires prior written permission from the author
+This project is licensed under the **MIT License**.
 
 ## Copyright
 
-Copyright (c) 2026 Roman Glos
+Copyright (c) 2026 Roman Glos / Railsimulatornet
