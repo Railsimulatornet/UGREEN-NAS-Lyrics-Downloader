@@ -1,0 +1,37 @@
+name: Container security scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '30 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build image
+        run: docker build --pull --tag ugreen-nas-lyrics-downloader:ci ./UGREEN-NAS-Lyrics-Downloader
+      - name: Scan image with Trivy
+        run: |
+          mkdir -p trivy-results
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/trivy-results:/out" aquasec/trivy:latest image --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL --format sarif --output /out/trivy.sarif ugreen-nas-lyrics-downloader:ci
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/trivy-results:/out" aquasec/trivy:latest image --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL --format table --output /out/trivy.txt ugreen-nas-lyrics-downloader:ci
+      - name: Upload Trivy SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4.37.3
+        with:
+          sarif_file: trivy-results/trivy.sarif
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-results
+          path: trivy-results/

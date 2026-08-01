@@ -1,0 +1,15 @@
+services:
+  ugreen_lyrics_downloader:
+    build:
+      context: .
+    image: ugreen-nas-lyrics-downloader:1.0.0
+    container_name: ugreen_lyrics_downloader
+    user: "${PUID:-1000}:${PGID:-10}"
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app:ro
+      - ${HOST_MUSIC_DIR:-/volume1/Emby/Musik}:/music
+      - ./config:/config
+      - ./reports:/reports
+    restart: "no"
