@@ -30,6 +30,9 @@ RUN set -eux; \
     rm -rf /root/.cache /tmp/* /var/tmp/*
 
 COPY app/lyrics_downloader.py /app/lyrics_downloader.py
-RUN chmod 0755 /app && chmod 0644 /app/lyrics_downloader.py
+RUN set -eux; \
+    sed -i "s/^APP_VERSION = .*/APP_VERSION = \"${VERSION}\"/" /app/lyrics_downloader.py; \
+    chmod 0755 /app; \
+    chmod 0644 /app/lyrics_downloader.py
 
 ENTRYPOINT ["python", "/app/lyrics_downloader.py"]
