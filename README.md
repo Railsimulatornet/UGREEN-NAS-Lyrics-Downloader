@@ -80,7 +80,7 @@ MAX_FILES_PER_RUN=0
 SAVE_REPORT=true
 REPORT_PATH=/reports/last_report.json
 LOG_LEVEL=INFO
-USER_AGENT=UGREEN-NAS-Lyrics-Downloader/1.0
+USER_AGENT=UGREEN-NAS-Lyrics-Downloader/1.0.1
 ```
 
 ## Wichtige Einstellungen
@@ -110,18 +110,21 @@ services:
   ugreen_lyrics_downloader:
     build:
       context: .
-    image: ugreen-nas-lyrics-downloader:1.0.0
+      args:
+        VERSION: "1.0.1"
+    image: ugreen-nas-lyrics-downloader:1.0.1
     container_name: ugreen_lyrics_downloader
     user: "${PUID:-1000}:${PGID:-10}"
     env_file:
       - .env
     volumes:
-      - ./app:/app:ro
       - ${HOST_MUSIC_DIR:-/volume1/Emby/Musik}:/music
       - ./config:/config
       - ./reports:/reports
     restart: "no"
 ```
+
+Der Anwendungscode wird direkt aus dem gebauten Image ausgeführt. Dadurch bleibt die im Image enthaltene Versions- und Runtime-Umgebung konsistent.
 
 ## Start per SSH oder Terminal
 
@@ -129,7 +132,7 @@ Alternativ kann das Paket auch per SSH gestartet werden:
 
 ```bash
 cd /volume2/docker/UGREEN-NAS-Lyrics-Downloader
-docker compose up --build
+docker compose -p lyrics_downloader up --build
 ```
 
 Wenn der Container dauerhaft laufen und in einem Intervall scannen soll, kann in der `.env` zum Beispiel gesetzt werden:
@@ -141,7 +144,7 @@ SCAN_INTERVAL_SECONDS=86400
 Dann kann der Container im Hintergrund gestartet werden:
 
 ```bash
-docker compose up -d --build
+docker compose -p lyrics_downloader up -d --build
 ```
 
 ## Log prüfen
@@ -149,13 +152,13 @@ docker compose up -d --build
 Während oder nach dem Lauf kann das Docker-Protokoll geprüft werden:
 
 ```bash
-docker compose logs -f
+docker compose -p lyrics_downloader logs -f
 ```
 
 Typische Meldungen:
 
 ```text
-INFO UGREEN NAS Lyrics Downloader 1.0.0 gestartet
+INFO UGREEN NAS Lyrics Downloader 1.0.1 gestartet
 INFO Musikordner: /music
 INFO Suche Lyrics: Artist - Title
 INFO WRITTEN: /music/Song.mp3 - Synchronisierte LRC geschrieben
@@ -207,21 +210,13 @@ Dieses Projekt steht unter der **MIT License**.
 
 ## Dokumentation
 
-Das ausführliche deutsch-englische Handbuch liegt als PDF im Release-Paket bei.
+Das ausführliche deutsch-englische Handbuch liegt als PDF im Repository beziehungsweise Release-Paket bei.
 
 ## Version
 
-- Lyrics Downloader Version: **V1.0.0**
-- Build-Stand im Paket: **2026-05-19.1**
+- Lyrics Downloader Version: **V1.0.1**
+- Build-Stand im Paket: **2026-08-30.1**
 
 ## English note
 
 The **UGREEN NAS Lyrics Downloader** is a lightweight Docker package for UGREEN NAS systems running UGOS. It scans a music library, downloads matching lyrics from LRCLIB and stores synchronized `.lrc` files next to the audio files.
-
-This project is intended to help test lyrics detection in the UGREEN Music app. Runtime settings are configured through `.env`, and the package can be deployed through the UGREEN Docker App or with Docker Compose.
-
-This project is licensed under the **MIT License**.
-
-## Copyright
-
-Copyright (c) 2026 Roman Glos / Railsimulatornet
