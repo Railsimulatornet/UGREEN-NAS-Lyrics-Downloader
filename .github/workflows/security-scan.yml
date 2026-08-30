@@ -3,7 +3,19 @@ name: Container security scan
 on:
   push:
     branches: [main]
+    paths:
+      - UGREEN-NAS-Lyrics-Downloader/Dockerfile
+      - UGREEN-NAS-Lyrics-Downloader/requirements.txt
+      - UGREEN-NAS-Lyrics-Downloader/app/**
+      - UGREEN-NAS-Lyrics-Downloader/docker-compose.yaml
+      - .github/workflows/security-scan.yml
   pull_request:
+    paths:
+      - UGREEN-NAS-Lyrics-Downloader/Dockerfile
+      - UGREEN-NAS-Lyrics-Downloader/requirements.txt
+      - UGREEN-NAS-Lyrics-Downloader/app/**
+      - UGREEN-NAS-Lyrics-Downloader/docker-compose.yaml
+      - .github/workflows/security-scan.yml
   schedule:
     - cron: '30 3 * * 1'
   workflow_dispatch:
@@ -17,18 +29,64 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
       - name: Build image
-        run: docker build --pull --tag ugreen-nas-lyrics-downloader:ci ./UGREEN-NAS-Lyrics-Downloader
+        run: |
+          set -euo pipefail
+          docker build \
+            --pull \
+            --no-cache \
+            --build-arg VERSION=1.0.1 \
+            --tag ugreen-nas-lyrics-downloader:ci \
+            ./UGREEN-NAS-Lyrics-Downloader
+
+      - name: Verify runtime dependencies
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --entrypoint python \
+            ugreen-nas-lyrics-downloader:ci \
+            -c 'import importlib.util, mutagen, requests; assert importlib.util.find_spec("pip") is None; assert importlib.util.find_spec("setuptools") is None; print("Runtime dependencies OK")'
+
       - name: Scan image with Trivy
         run: |
+          set -euo pipefail
           mkdir -p trivy-results
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/trivy-results:/out" aquasec/trivy:latest image --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL --format sarif --output /out/trivy.sarif ugreen-nas-lyrics-downloader:ci
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/trivy-results:/out" aquasec/trivy:latest image --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL --format table --output /out/trivy.txt ugreen-nas-lyrics-downloader:ci
+
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/trivy-results:/out" \
+            ghcr.io/aquasecurity/trivy:latest \
+            image \
+            --image-src docker \
+            --scanners vuln \
+            --pkg-types os,library \
+            --ignore-unfixed \
+            --severity HIGH,CRITICAL \
+            --format sarif \
+            --output /out/trivy.sarif \
+            ugreen-nas-lyrics-downloader:ci
+
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${HOME}/.cache/trivy:/root/.cache/trivy" \
+            ghcr.io/aquasecurity/trivy:latest \
+            image \
+            --image-src docker \
+            --scanners vuln \
+            --pkg-types os,library \
+            --ignore-unfixed \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            --format table \
+            ugreen-nas-lyrics-downloader:ci
+
       - name: Upload Trivy SARIF to GitHub Security
         if: always()
         uses: github/codeql-action/upload-sarif@v4.37.3
         with:
           sarif_file: trivy-results/trivy.sarif
+
       - name: Upload Trivy report
         if: always()
         uses: actions/upload-artifact@v7
