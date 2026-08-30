@@ -10,7 +10,6 @@ services:
     env_file:
       - .env
     volumes:
-      - ./app:/app:ro
       - ${HOST_MUSIC_DIR:-/volume1/Emby/Musik}:/music
       - ./config:/config
       - ./reports:/reports
