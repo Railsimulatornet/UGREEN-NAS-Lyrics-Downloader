@@ -2,7 +2,9 @@ services:
   ugreen_lyrics_downloader:
     build:
       context: .
-    image: ugreen-nas-lyrics-downloader:1.0.0
+      args:
+        VERSION: "1.0.1"
+    image: ugreen-nas-lyrics-downloader:1.0.1
     container_name: ugreen_lyrics_downloader
     user: "${PUID:-1000}:${PGID:-10}"
     env_file:
