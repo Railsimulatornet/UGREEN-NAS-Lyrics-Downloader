@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 - 2026-08-30
+
+- Sicherheitsupdate für das Container-Image.
+- Debian- und Python-Abhängigkeiten aktualisiert.
+- Nicht benötigte Python-Build-Werkzeuge aus dem Runtime-Image entfernt.
+- Keine Änderungen an Download-, LRC- oder Berichtsfunktionen.
+
 ## 1.0.0 - 2026-05-18
 
 - Erste stabile Version für UGREEN NAS / UGOS.
