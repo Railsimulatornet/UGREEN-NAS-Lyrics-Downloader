@@ -1,4 +1,4 @@
-﻿name: Build and publish Docker image
+name: Build and publish Docker image
 
 on:
   push:
@@ -15,22 +15,70 @@ env:
   DOCKERHUB_IMAGE: railsimulatornet/ugreen-nas-lyrics-downloader
 
 jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build security candidate
+        run: |
+          set -euo pipefail
+          docker build \
+            --pull \
+            --no-cache \
+            --build-arg VERSION="${GITHUB_REF_NAME#v}" \
+            --tag ugreen-nas-lyrics-downloader:release-candidate \
+            ./UGREEN-NAS-Lyrics-Downloader
+
+      - name: Verify runtime dependencies
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --entrypoint python \
+            ugreen-nas-lyrics-downloader:release-candidate \
+            -c 'import importlib.util, mutagen, requests; assert importlib.util.find_spec("pip") is None; assert importlib.util.find_spec("setuptools") is None; print("Runtime dependencies OK")'
+
+      - name: Security gate
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${HOME}/.cache/trivy:/root/.cache/trivy" \
+            ghcr.io/aquasecurity/trivy:latest \
+            image \
+            --image-src docker \
+            --scanners vuln \
+            --pkg-types os,library \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --format table \
+            ugreen-nas-lyrics-downloader:release-candidate
+
   docker:
+    needs: security
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
-          username: Railsimulatornet
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -47,9 +95,15 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push Docker images
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./UGREEN-NAS-Lyrics-Downloader
+          platforms: linux/amd64,linux/arm64
+          pull: true
+          no-cache: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ steps.meta.outputs.version }}
+          provenance: mode=max
+          sbom: true
