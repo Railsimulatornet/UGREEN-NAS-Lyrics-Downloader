@@ -1,0 +1,6 @@
+# Only application sources enter local and CI build contexts.
+**
+!Dockerfile
+!requirements.txt
+!app/
+!app/lyrics_downloader.py

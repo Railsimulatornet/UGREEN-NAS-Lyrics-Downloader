@@ -80,7 +80,7 @@ MAX_FILES_PER_RUN=0
 SAVE_REPORT=true
 REPORT_PATH=/reports/last_report.json
 LOG_LEVEL=INFO
-USER_AGENT=UGREEN-NAS-Lyrics-Downloader/1.0.1
+USER_AGENT=UGREEN-NAS-Lyrics-Downloader/1.0.2
 ```
 
 ## Wichtige Einstellungen
@@ -103,7 +103,7 @@ USER_AGENT=UGREEN-NAS-Lyrics-Downloader/1.0.1
 
 ## Docker Compose
 
-Die mitgelieferte `docker-compose.yaml` ist für die Nutzung als UGOS Docker-Projekt vorbereitet:
+Die mitgelieferte `docker-compose.yaml` ist weiterhin für den **lokalen Build** als UGOS Docker-Projekt vorbereitet:
 
 ```yaml
 services:
@@ -111,8 +111,8 @@ services:
     build:
       context: .
       args:
-        VERSION: "1.0.1"
-    image: ugreen-nas-lyrics-downloader:1.0.1
+        VERSION: "1.0.2"
+    image: ugreen-nas-lyrics-downloader:1.0.2
     container_name: ugreen_lyrics_downloader
     user: "${PUID:-1000}:${PGID:-10}"
     env_file:
@@ -128,7 +128,7 @@ Der Anwendungscode wird direkt aus dem gebauten Image ausgeführt. Dadurch bleib
 
 ## Start per SSH oder Terminal
 
-Alternativ kann das Paket auch per SSH gestartet werden:
+Alternativ kann das Paket auch per SSH gestartet werden. **Bei bestehenden UGOS-Projekten den tatsächlichen Projektnamen aus dem Container-Label `com.docker.compose.project` verwenden.** Der Name `lyrics_downloader` in den folgenden Beispielen ist für eine Neuinstallation gedacht; nicht aus dem Ordnernamen ableiten.
 
 ```bash
 cd /volume2/docker/UGREEN-NAS-Lyrics-Downloader
@@ -158,7 +158,7 @@ docker compose -p lyrics_downloader logs -f
 Typische Meldungen:
 
 ```text
-INFO UGREEN NAS Lyrics Downloader 1.0.1 gestartet
+INFO UGREEN NAS Lyrics Downloader 1.0.2 gestartet
 INFO Musikordner: /music
 INFO Suche Lyrics: Artist - Title
 INFO WRITTEN: /music/Song.mp3 - Synchronisierte LRC geschrieben
@@ -204,19 +204,33 @@ Standardmäßig werden folgende Erweiterungen verarbeitet:
 
 Die Liste kann über `AUDIO_EXTENSIONS` in der `.env` angepasst werden.
 
+## Vorgebaute Images und Wartung
+
+Die Image-Namen bleiben `railsimulatornet/ugreen-nas-lyrics-downloader` auf Docker Hub und `ghcr.io/railsimulatornet/ugreen-nas-lyrics-downloader` auf GHCR. Beide Quellen bieten AMD64 und ARM64.
+
+- `1.0.2`: feste Release-Version, die bei späteren Wartungsbuilds nicht überschrieben wird.
+- `latest`: aktueller geprüfter Build; wird zusätzlich wöchentlich frisch gebaut.
+- `1.0.2-build.20260927.10.1`: Beispiel für einen Wartungsbuild mit Version, Datum und Buildnummer.
+
+Ein frischer Build wird für beide Architekturen geprüft und ohne weiteren Build in beiden Registries veröffentlicht. Behebbare schwere oder kritische Funde und Scanfehler verhindern die Veröffentlichung. Der vollständige Scanbericht enthält auch noch nicht behebbare Funde.
+
+**Bestehende lokale Installationen:** Die neue `Dockerfile` und `requirements.txt` übernehmen, Versionsangaben im eigenen Compose-Projekt auf `1.0.2` anpassen und den bestehenden Lyrics-Downloader-Dienst neu bauen. Die eigene `.env`, angepasste Mounts, Musik und `.lrc`-Dateien nicht überschreiben. Die mitgelieferte Compose-Datei wird nicht automatisch auf ein Registry-Image umgestellt.
+
 ## Lizenz
 
 Dieses Projekt steht unter der **MIT License**.
 
 ## Dokumentation
 
-Das ausführliche deutsch-englische Handbuch liegt als PDF im Repository beziehungsweise Release-Paket bei.
+Das ausführliche deutsch-englische Handbuch liegt als PDF im Repository beziehungsweise Release-Paket bei. Für v1.0.2 wird das zuletzt veröffentlichte DE/EN-Handbuch aus v1.0.1 unverändert mitgeliefert; die aktuellen Update-Hinweise stehen hier und in den Release Notes.
 
 ## Version
 
-- Lyrics Downloader Version: **V1.0.1**
-- Build-Stand im Paket: **2026-08-30.1**
+- Lyrics Downloader Version: **V1.0.2**
+- Build-Stand im Paket: **2026-09-27.1**
 
 ## English note
 
 The **UGREEN NAS Lyrics Downloader** is a lightweight Docker package for UGREEN NAS systems running UGOS. It scans a music library, downloads matching lyrics from LRCLIB and stores synchronized `.lrc` files next to the audio files.
+
+The included Compose project still builds locally. Prebuilt AMD64 and ARM64 images remain available from Docker Hub and GHCR under the existing names. Fixed release tags are preserved; `latest` receives checked weekly rebuilds. Existing installations must retain their `.env`, customized mounts, music and `.lrc` files. For local updates, replace `Dockerfile` and `requirements.txt`, update the version entries, and rebuild the existing service using its actual Compose project name.

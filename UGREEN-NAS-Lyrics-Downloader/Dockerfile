@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-ARG VERSION=1.0.1
+ARG VERSION=1.0.2
 
 LABEL org.opencontainers.image.title="UGREEN NAS Lyrics Downloader" \
       org.opencontainers.image.version="${VERSION}" \
