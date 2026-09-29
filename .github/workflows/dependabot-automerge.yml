@@ -1,0 +1,114 @@
+name: Dependabot patch auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+  workflow_run:
+    workflows:
+      - Build and publish Docker image
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-automerge-${{ github.event.pull_request.number || github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  classify:
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mark eligible patch update
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+        run: |
+          set -Eeuo pipefail
+
+          for label in automerge:patch:github-actions automerge:patch:docker automerge:patch:pip; do
+            gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "$label" >/dev/null 2>&1 || true
+          done
+
+          [[ "$UPDATE_TYPE" == "version-update:semver-patch" ]] || exit 0
+
+          case "$ECOSYSTEM" in
+            github_actions) label="automerge:patch:github-actions" ;;
+            docker) label="automerge:patch:docker" ;;
+            pip) label="automerge:patch:pip" ;;
+            *) exit 0 ;;
+          esac
+
+          gh label create "$label" --repo "$GITHUB_REPOSITORY"             --description "Verified Dependabot patch update eligible for automatic merge"             --color "0E8A16" --force
+          gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "$label"
+
+  merge:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Merge eligible patch after all PR checks pass
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+
+          PR_NUMBER="$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")"
+          [[ -n "$PR_NUMBER" ]] || exit 0
+
+          PR_JSON="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
+          [[ "$(jq -r '.state' <<<"$PR_JSON")" == "open" ]] || exit 0
+          [[ "$(jq -r '.user.login' <<<"$PR_JSON")" == "dependabot[bot]" ]] || exit 0
+          [[ "$(jq -r '.base.ref' <<<"$PR_JSON")" == "main" ]] || exit 0
+          [[ "$(jq -r '.draft' <<<"$PR_JSON")" == "false" ]] || exit 0
+          HEAD_SHA="$(jq -r '.head.sha' <<<"$PR_JSON")"
+
+          mapfile -t LABELS < <(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name')
+          ecosystem=""
+          printf '%s\n' "${LABELS[@]}" | grep -Fxq 'automerge:patch:github-actions' && ecosystem="github-actions"
+          printf '%s\n' "${LABELS[@]}" | grep -Fxq 'automerge:patch:docker' && ecosystem="docker"
+          printf '%s\n' "${LABELS[@]}" | grep -Fxq 'automerge:patch:pip' && ecosystem="pip"
+          [[ -n "$ecosystem" ]] || exit 0
+
+          mapfile -t FILES < <(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --jq '.[].filename')
+          (( ${#FILES[@]} > 0 )) || exit 0
+
+          for file in "${FILES[@]}"; do
+            case "$ecosystem:$file" in
+              github-actions:.github/workflows/*.yml|github-actions:.github/workflows/*.yaml) ;;
+              docker:UGREEN-NAS-Lyrics-Downloader/Dockerfile) ;;
+              pip:UGREEN-NAS-Lyrics-Downloader/requirements.txt|pip:UGREEN-NAS-Lyrics-Downloader/requirements-*.txt|pip:UGREEN-NAS-Lyrics-Downloader/pyproject.toml|pip:UGREEN-NAS-Lyrics-Downloader/poetry.lock) ;;
+              *) echo "Unexpected file for $ecosystem auto-merge: $file"; exit 0 ;;
+            esac
+          done
+
+          RUNS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$HEAD_SHA&event=pull_request&per_page=100" --jq '.workflow_runs')"
+          COUNT="$(jq 'length' <<<"$RUNS")"
+          (( COUNT > 0 )) || exit 0
+          if jq -e '.[] | select(.status != "completed" or .conclusion != "success")' <<<"$RUNS" >/dev/null; then
+            echo "Not all pull-request workflows are successful yet."
+            exit 0
+          fi
+
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --merge
