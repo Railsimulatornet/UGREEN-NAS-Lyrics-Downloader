@@ -6,18 +6,29 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      actions-minor-patch:
-        update-types: [minor, patch]
+      actions-patch:
+        update-types: [patch]
+      actions-minor:
+        update-types: [minor]
+
   - package-ecosystem: docker
     directory: /UGREEN-NAS-Lyrics-Downloader
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+    groups:
+      docker-patch:
+        update-types: [patch]
+      docker-minor:
+        update-types: [minor]
+
   - package-ecosystem: pip
     directory: /UGREEN-NAS-Lyrics-Downloader
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      python-minor-patch:
-        update-types: [minor, patch]
+      python-patch:
+        update-types: [patch]
+      python-minor:
+        update-types: [minor]
