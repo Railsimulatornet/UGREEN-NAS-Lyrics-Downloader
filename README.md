@@ -119,6 +119,13 @@ services:
     image: ugreen-nas-lyrics-downloader:1.0.2
     container_name: ugreen_lyrics_downloader
     user: "${PUID:-1000}:${PGID:-10}"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
     env_file:
       - .env
     volumes:
@@ -127,6 +134,8 @@ services:
       - ./reports:/reports
     restart: "no"
 ```
+
+**Sicherheitsoptionen für den NAS-Betrieb:** Die Compose-Datei verwendet ein schreibgeschütztes Container-Root-Dateisystem, entfernt zusätzliche Linux-Capabilities und verhindert die Erlangung neuer Privilegien. `/tmp` bleibt über ein temporäres Dateisystem nutzbar. Die vorhandenen Bind-Mounts `/music`, `/config` und `/reports` bleiben wie bisher erhalten; insbesondere ist `/music` weiterhin beschreibbar, damit `.lrc`-Dateien angelegt werden können. Diese Härtung beseitigt keine CVEs in Debian-Paketen, begrenzt aber die Möglichkeiten eines kompromittierten Prozesses.
 
 Der Anwendungscode wird direkt aus dem gebauten Image ausgeführt. Dadurch bleibt die im Image enthaltene Versions- und Runtime-Umgebung konsistent.
 
