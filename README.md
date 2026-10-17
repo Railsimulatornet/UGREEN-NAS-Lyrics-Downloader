@@ -128,6 +128,8 @@ services:
     restart: "no"
 ```
 
+**Sicherheitsoptionen für den NAS-Betrieb:** Die Compose-Datei verwendet ein schreibgeschütztes Container-Root-Dateisystem, entfernt zusätzliche Linux-Capabilities und verhindert die Erlangung neuer Privilegien. `/tmp` bleibt über ein temporäres Dateisystem nutzbar. Die vorhandenen Bind-Mounts `/music`, `/config` und `/reports` bleiben wie bisher erhalten; insbesondere ist `/music` weiterhin beschreibbar, damit `.lrc`-Dateien angelegt werden können. Diese Härtung beseitigt keine CVEs in Debian-Paketen, begrenzt aber die Möglichkeiten eines kompromittierten Prozesses.
+
 Der Anwendungscode wird direkt aus dem gebauten Image ausgeführt. Dadurch bleibt die im Image enthaltene Versions- und Runtime-Umgebung konsistent.
 
 ## Start per SSH oder Terminal
