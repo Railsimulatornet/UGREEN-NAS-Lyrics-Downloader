@@ -1,43 +1,37 @@
 ## Deutsch
 
-### Was ist neu?
+### Sicherheitsupdate
 
-Dieses Update aktualisiert die Bibliotheken für Downloads und Musik-Tags und verbessert die automatische Pflege der Docker-Images.
+Die mitgelieferte Docker-Compose-Datei wurde abgesichert:
 
-- Requests wurde auf `2.34.2` und Mutagen auf `1.48.1` aktualisiert.
-- Die Images für AMD64 und ARM64 werden vor der Veröffentlichung auf behebbare schwere und kritische Sicherheitslücken geprüft.
-- Docker Hub und die GitHub Container Registry erhalten dasselbe geprüfte Image.
-- `latest` wird zusätzlich einmal pro Woche frisch gebaut und geprüft. Feste Versionstags bleiben unverändert; Wartungsbuilds erhalten lesbare Tags mit Version und Datum.
-
-An den Download-, LRC- und Berichtsfunktionen sowie den bisherigen Einstellungen ändert sich nichts.
+- Container-Dateisystem schreibgeschützt, keine zusätzlichen Linux-Berechtigungen und keine Rechteausweitung.
+- Musikordner, Konfiguration und Berichte bleiben wie bisher nutzbar.
+- Keine Änderungen am Lyrics-Download oder an den Python-Abhängigkeiten.
 
 ### Aktualisierung
 
-Der lokale Build über das mitgelieferte Compose-Projekt bleibt erhalten. Bei bestehenden lokalen Installationen die neue `Dockerfile` und `requirements.txt` übernehmen und den bestehenden Lyrics-Downloader-Dienst neu bauen. Die Versionsangaben im eigenen Compose-Projekt können auf `1.0.2` angepasst werden.
+Bei einer bestehenden Installation die neuen Sicherheitsoptionen in die eigene `docker-compose.yaml` übernehmen und den Container neu erstellen. Die eigene `.env`, angepasste Mounts, Musikdateien und vorhandene `.lrc`-Dateien beibehalten.
 
-Wer bereits ein vorgebautes Image verwendet, kann bei `latest` bleiben oder gezielt `1.0.2` verwenden. Beide Quellen bleiben bestehen: `railsimulatornet/ugreen-nas-lyrics-downloader` und `ghcr.io/railsimulatornet/ugreen-nas-lyrics-downloader`.
+Wer ein vorgebautes Image nutzt, muss die Sicherheitsoptionen ebenfalls in der eigenen Compose-Datei setzen. Das Image allein aktiviert diese Einstellungen nicht.
 
-**Die eigene `.env`, angepasste Mounts, Musikdateien und vorhandene `.lrc`-Dateien bitte beibehalten.** Das ZIP-Paket und das deutsch-englische PDF-Handbuch stehen wie bisher zur Verfügung.
+Die noch offenen Debian-Sicherheitsmeldungen werden durch dieses Update nicht behoben.
 
 ---
 
 ## English
 
-### What is new?
+### Security update
 
-This update refreshes the download and audio-tag libraries and improves automated Docker image maintenance.
+The included Docker Compose configuration has been hardened:
 
-- Updated Requests to `2.34.2` and Mutagen to `1.48.1`.
-- AMD64 and ARM64 images are checked for fixable high and critical vulnerabilities before publication.
-- Docker Hub and GitHub Container Registry receive the same verified image.
-- `latest` is also rebuilt and checked weekly. Fixed version tags stay unchanged; maintenance builds receive readable version-and-date tags.
-
-Download, LRC and reporting features, as well as existing settings, remain unchanged.
+- Read-only container root filesystem, no additional Linux capabilities and no privilege escalation.
+- Music, configuration and report mounts remain available.
+- No changes to lyrics downloading or Python dependencies.
 
 ### Updating
 
-The included Compose project continues to support local builds. For an existing local installation, update `Dockerfile` and `requirements.txt`, then rebuild the existing Lyrics Downloader service. Version entries in the existing Compose project can be updated to `1.0.2`.
+For existing installations, apply the new security settings to the current `docker-compose.yaml` and recreate the container. Keep the existing `.env`, custom mounts, music files and `.lrc` files.
 
-Existing users of prebuilt images can keep `latest` or select `1.0.2`. Both sources remain available: `railsimulatornet/ugreen-nas-lyrics-downloader` and `ghcr.io/railsimulatornet/ugreen-nas-lyrics-downloader`.
+Users of prebuilt images must also apply the security options in their own Compose file. The image alone does not enforce these settings.
 
-**Keep the existing `.env`, customized mounts, music and `.lrc` files.** The ZIP package and German-English PDF manual remain available.
+This update does not fix the outstanding Debian vulnerability reports.
