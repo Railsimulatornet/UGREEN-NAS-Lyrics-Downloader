@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.3 - 2026-10-17
+
+### Deutsch
+
+- Sicherheitsupdate: Docker Compose startet den Container mit schreibgeschütztem Dateisystem, ohne zusätzliche Linux-Berechtigungen und ohne Rechteausweitung.
+- Musik-, Konfigurations- und Berichtspfade bleiben nutzbar. Keine Änderungen am Lyrics-Download.
+
+### English
+
+- Security update: Docker Compose now runs the container with a read-only root filesystem, no extra Linux capabilities and no privilege escalation.
+- Music, configuration and report mounts remain available. Lyrics downloading is unchanged.
+
 ## 1.0.2 - 2026-09-27
 
 ### Deutsch
