@@ -119,6 +119,13 @@ services:
     image: ugreen-nas-lyrics-downloader:1.0.2
     container_name: ugreen_lyrics_downloader
     user: "${PUID:-1000}:${PGID:-10}"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
     env_file:
       - .env
     volumes:
