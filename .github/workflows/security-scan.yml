@@ -32,6 +32,24 @@ jobs:
           shellcheck .github/scripts/*.sh
           python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
           python3 -m py_compile .github/scripts/*.py
+      - name: Verify hardened NAS Compose configuration
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          stage="$(mktemp -d)"
+          trap 'rm -rf -- "$stage"' EXIT
+          cp UGREEN-NAS-Lyrics-Downloader/docker-compose.yaml "$stage/docker-compose.yaml"
+          cp UGREEN-NAS-Lyrics-Downloader/.env.example "$stage/.env"
+          docker compose -f "$stage/docker-compose.yaml" config --format json > "$stage/resolved.json"
+          jq -e '
+            .services.ugreen_lyrics_downloader
+            | (.read_only == true)
+              and (.cap_drop | index("ALL") != null)
+              and (.security_opt | index("no-new-privileges:true") != null)
+              and (.tmpfs | any(startswith("/tmp:")))
+              and (.user | type == "string")
+              and (.volumes | length == 3)
+          ' "$stage/resolved.json"
       - name: Build and check release package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
