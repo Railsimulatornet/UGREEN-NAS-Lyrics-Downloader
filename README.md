@@ -1,248 +1,368 @@
 # UGREEN NAS Lyrics Downloader
 
-[![Docker Image](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/actions/workflows/docker-publish.yml)
-[![Security Scan](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/actions/workflows/security-scan.yml/badge.svg)](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/actions/workflows/security-scan.yml)
+[![Docker Image](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/actions/workflows/docker-publish.yml/badge.svg?branch=main)](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/actions/workflows/docker-publish.yml)
+[![Security Scan](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/actions/workflows/security-scan.yml/badge.svg?branch=main)](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/actions/workflows/security-scan.yml)
+[![CodeQL](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ![UGREEN NAS Lyrics Downloader](Screens/Lyrics_Downloader.png)
 
-Der **UGREEN NAS Lyrics Downloader** ist ein leichtgewichtiges Docker-Paket für UGREEN NAS Systeme mit UGOS. Das Tool durchsucht eine Musikbibliothek automatisch nach Audiodateien, lädt passende Lyrics über LRCLIB herunter und speichert synchronisierte `.lrc`-Dateien direkt neben den Musikdateien.
+[Deutsch](#deutsch) · [English](#english)
 
-Das Paket ist besonders dafür gedacht, die Lyrics-Erkennung der UGREEN Music App zu testen. Es funktioniert grundsätzlich auch auf anderen Docker-Hosts, ist aber für die Nutzung auf UGREEN NAS mit der Docker App vorbereitet.
+## Deutsch
 
-## Features
+Der Lyrics Downloader durchsucht deine Musikbibliothek, lädt passende Liedtexte von LRCLIB und speichert synchronisierte `.lrc`-Dateien direkt neben den Audiodateien. Das Paket ist für UGREEN NAS mit UGOS vorbereitet und kann auch auf anderen Docker-Hosts verwendet werden.
 
-- Automatischer Download synchronisierter Lyrics
-- Speicherung als `.lrc`-Datei direkt neben der jeweiligen Musikdatei
-- Docker-Setup für UGREEN NAS und UGOS
-- Deutsch und Englisch in Konfiguration und Dokumentation
-- Optionaler JSON-Report unter `reports/last_report.json`
-- Log-Ausgabe direkt im Docker-Protokoll
-- Erkennt vorhandene `.lrc`-Dateien und überspringt sie
-- Optionaler Dry-Run ohne Dateischreibzugriff
-- Geeignet zum Testen der UGREEN Music Lyrics-Erkennung
+Es hilft dir, Lyrics zur Musikbibliothek hinzuzufügen und die Erkennung in UGREEN Music zu prüfen. Die Anzeige in der Musik-App hängt von deren Indexierung und den verfügbaren Liedtexten ab.
 
-## Projektstruktur
+### Funktionen
 
-```text
-UGREEN-NAS-Lyrics-Downloader/
-|- README.md
-|- Dockerfile
-|- docker-compose.yaml
-|- requirements.txt
-|- .env
-|- Screens/
-|  `- Lyrics_Downloader.png
-|- app/
-|  `- lyrics_downloader.py
-|- config/
-`- reports/
-```
+- Synchronisierte Lyrics als `.lrc` neben der Musikdatei speichern
+- Vorhandene `.lrc`-Dateien überspringen
+- Optional einfache Liedtexte oder eingebettete Audio-Tags schreiben
+- Einmaliger Lauf oder regelmäßige Scans im Container
+- Dry-Run, Docker-Protokoll und optionaler JSON-Bericht
+- Zweisprachige Konfiguration und DE/EN-Handbuch
+- Lokaler Docker-Build sowie vorgebaute Images für AMD64 und ARM64
 
-## Schnellstart auf einem UGREEN NAS mit Docker App
+### Voraussetzungen
 
-1. Paket herunterladen und entpacken.
-2. Den entpackten Ordner auf das NAS kopieren, zum Beispiel nach:
+- Docker mit Docker Compose oder die UGOS-Docker-App
+- Internetzugang zu LRCLIB
+- Eine Musikbibliothek mit unterstützten Audiodateien
+- Passende `PUID` und `PGID` mit Schreibrechten auf Musikbibliothek und `reports/`
 
-```text
-/volume2/docker/UGREEN-NAS-Lyrics-Downloader
-```
+Standardmäßig werden `.mp3`, `.flac`, `.m4a`, `.mp4`, `.ogg` und `.opus` verarbeitet. Weitere Dateiendungen kannst du über `AUDIO_EXTENSIONS` eintragen; sie müssen vom verwendeten Metadatenleser unterstützt werden.
 
-3. Die Datei `.env` öffnen und die wichtigsten Werte anpassen:
+### Schnellstart
 
-```env
-HOST_MUSIC_DIR=/volume1/Emby/Musik
-PUID=1009
-PGID=10
-```
-
-4. In UGOS die **Docker App** öffnen.
-5. Links auf **Projekt** klicken.
-6. Ein neues Projekt erstellen.
-7. Als Speicherpfad den Ordner des Pakets auswählen.
-8. Die vorhandene Compose-Konfiguration importieren oder den Inhalt von `docker-compose.yaml` einfügen.
-9. Auf **Bereitstellen** klicken.
-10. Danach im Projekt unter **Protokoll** prüfen, ob Lyrics gefunden und geschrieben werden.
-
-## Beispiel `.env`
-
-```env
-HOST_MUSIC_DIR=/volume1/Emby/Musik
-PUID=1009
-PGID=10
-SCAN_INTERVAL_SECONDS=0
-AUDIO_EXTENSIONS=.mp3,.flac,.m4a,.mp4,.ogg,.opus
-REQUIRE_SYNCED_LYRICS=true
-WRITE_PLAIN_AS_LRC=false
-WRITE_SIDECAR_LRC=true
-WRITE_EMBEDDED_TAGS=false
-SKIP_EXISTING_LRC=true
-TOUCH_AUDIO_ON_WRITE=true
-DRY_RUN=false
-REQUEST_DELAY_SECONDS=1.0
-MAX_FILES_PER_RUN=0
-SAVE_REPORT=true
-REPORT_PATH=/reports/last_report.json
-LOG_LEVEL=INFO
-USER_AGENT=UGREEN-NAS-Lyrics-Downloader/1.0.3
-```
-
-## Wichtige Einstellungen
-
-| Variable | Beispiel | Bedeutung |
-|---|---:|---|
-| `HOST_MUSIC_DIR` | `/volume1/Emby/Musik` | Host-Pfad zur Musikbibliothek auf dem NAS |
-| `PUID` | `1000` | Benutzer-ID für Dateizugriff |
-| `PGID` | `10` | Gruppen-ID für Dateizugriff |
-| `SCAN_INTERVAL_SECONDS` | `0` | `0` bedeutet einmal ausführen und beenden, `86400` bedeutet einmal täglich im Container laufen lassen |
-| `REQUIRE_SYNCED_LYRICS` | `true` | Nur synchronisierte Lyrics verwenden |
-| `WRITE_PLAIN_AS_LRC` | `false` | Unsynchronisierte Lyrics als einfache LRC-Datei schreiben, wenn keine synchronisierten Lyrics gefunden werden |
-| `WRITE_SIDECAR_LRC` | `true` | `.lrc`-Datei neben der Audiodatei speichern |
-| `WRITE_EMBEDDED_TAGS` | `false` | Lyrics zusätzlich in Audiodatei-Tags schreiben |
-| `SKIP_EXISTING_LRC` | `true` | Vorhandene `.lrc`-Dateien nicht überschreiben |
-| `TOUCH_AUDIO_ON_WRITE` | `true` | Audiodatei nach erfolgreichem Schreiben kurz anfassen, damit Änderungen eher erkannt werden |
-| `DRY_RUN` | `false` | Testlauf ohne Dateischreibzugriff |
-| `MAX_FILES_PER_RUN` | `0` | Maximale Dateien pro Lauf, `0` bedeutet keine Begrenzung |
-| `SAVE_REPORT` | `true` | JSON-Report speichern |
-
-## Docker Compose
-
-Die mitgelieferte `docker-compose.yaml` ist weiterhin für den **lokalen Build** als UGOS Docker-Projekt vorbereitet:
-
-```yaml
-services:
-  ugreen_lyrics_downloader:
-    build:
-      context: .
-      args:
-        VERSION: "1.0.3"
-    image: ugreen-nas-lyrics-downloader:1.0.3
-    container_name: ugreen_lyrics_downloader
-    user: "${PUID:-1000}:${PGID:-10}"
-    read_only: true
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp:rw,nosuid,nodev,size=64m
-    env_file:
-      - .env
-    volumes:
-      - ${HOST_MUSIC_DIR:-/volume1/Emby/Musik}:/music
-      - ./config:/config
-      - ./reports:/reports
-    restart: "no"
-```
-
-**Sicherheitsoptionen für den NAS-Betrieb:** Die Compose-Datei verwendet ein schreibgeschütztes Container-Root-Dateisystem, entfernt zusätzliche Linux-Capabilities und verhindert die Erlangung neuer Privilegien. `/tmp` bleibt über ein temporäres Dateisystem nutzbar. Die vorhandenen Bind-Mounts `/music`, `/config` und `/reports` bleiben wie bisher erhalten; insbesondere ist `/music` weiterhin beschreibbar, damit `.lrc`-Dateien angelegt werden können. Diese Härtung beseitigt keine CVEs in Debian-Paketen, begrenzt aber die Möglichkeiten eines kompromittierten Prozesses.
-
-Der Anwendungscode wird direkt aus dem gebauten Image ausgeführt. Dadurch bleibt die im Image enthaltene Versions- und Runtime-Umgebung konsistent.
-
-## Start per SSH oder Terminal
-
-Alternativ kann das Paket auch per SSH gestartet werden. **Bei bestehenden UGOS-Projekten den tatsächlichen Projektnamen aus dem Container-Label `com.docker.compose.project` verwenden.** Der Name `lyrics_downloader` in den folgenden Beispielen ist für eine Neuinstallation gedacht; nicht aus dem Ordnernamen ableiten.
+1. Lade das Paket unter [Releases](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/releases/latest) herunter und entpacke es.
+2. Verwende den **Projektordner mit `docker-compose.yaml`, `Dockerfile` und `app/`**. Im Repository liegt er unter `UGREEN-NAS-Lyrics-Downloader/`.
+3. Kopiere diesen Ordner auf dein NAS, zum Beispiel nach `/volume2/docker/UGREEN-NAS-Lyrics-Downloader`.
+4. Lege dort `.env` an. Eine vorhandene Datei bleibt erhalten:
 
 ```bash
 cd /volume2/docker/UGREEN-NAS-Lyrics-Downloader
+test -f .env || cp .env.example .env
+```
+
+5. Passe mindestens diese Werte an deinen Musikpfad und Benutzer an:
+
+```env
+HOST_MUSIC_DIR=/volume1/Emby/Musik
+PUID=1000
+PGID=10
+```
+
+6. Öffne in UGOS **Docker → Projekt → Erstellen**, wähle den Projektordner und importiere die vorhandene `docker-compose.yaml`.
+7. Stelle das Projekt bereit und kontrolliere das Docker-Protokoll.
+
+#### Start per SSH
+
+Die mitgelieferte Compose-Datei baut das Image lokal. Für eine Neuinstallation mit dem Beispiel-Projektnamen `lyrics_downloader`:
+
+```bash
 docker compose -p lyrics_downloader up --build
 ```
 
-Wenn der Container dauerhaft laufen und in einem Intervall scannen soll, kann in der `.env` zum Beispiel gesetzt werden:
+Bei bestehenden UGOS-Projekten verwendest du den tatsächlichen Namen aus dem Container-Label `com.docker.compose.project`. Übernimm ihn auch für alle folgenden Compose-Befehle; leite ihn nicht aus dem Ordnernamen ab.
+
+Mit `SCAN_INTERVAL_SECONDS=0` läuft der Downloader einmal und beendet sich danach. Für einen laufenden Container mit täglichem Scan setzt du in `.env`:
 
 ```env
 SCAN_INTERVAL_SECONDS=86400
 ```
 
-Dann kann der Container im Hintergrund gestartet werden:
-
 ```bash
 docker compose -p lyrics_downloader up -d --build
 ```
 
-## Log prüfen
+### Konfiguration
 
-Während oder nach dem Lauf kann das Docker-Protokoll geprüft werden:
+Die vollständige Vorlage findest du in [.env.example](UGREEN-NAS-Lyrics-Downloader/.env.example). Werte in der Tabelle entsprechen der Vorlage oder sind ausdrücklich Beispiele.
+
+| Einstellung | Wert | Bedeutung |
+| --- | --- | --- |
+| `HOST_MUSIC_DIR` | `/volume1/Emby/Musik` | Beispielpfad der Musikbibliothek auf dem Host |
+| `PUID` / `PGID` | `1000` / `10` | Benutzer und Gruppe für den Dateizugriff |
+| `SCAN_INTERVAL_SECONDS` | `0` | Einmaliger Lauf; `86400` wartet zwischen Läufen einen Tag |
+| `AUDIO_EXTENSIONS` | `.mp3,.flac,.m4a,.mp4,.ogg,.opus` | Zu durchsuchende Dateiendungen |
+| `REQUIRE_SYNCED_LYRICS` | `true` | Synchronisierte Liedtexte verlangen |
+| `WRITE_PLAIN_AS_LRC` | `false` | Einfache Liedtexte als `.lrc` zulassen; benötigt zusätzlich `REQUIRE_SYNCED_LYRICS=false` |
+| `WRITE_SIDECAR_LRC` | `true` | `.lrc` neben der Audiodatei schreiben |
+| `WRITE_EMBEDDED_TAGS` | `false` | Liedtexte zusätzlich in Audio-Tags schreiben |
+| `SKIP_EXISTING_LRC` | `true` | Dateien mit vorhandener `.lrc` überspringen |
+| `TOUCH_AUDIO_ON_WRITE` | `true` | Änderungszeit der Audiodatei nach dem Schreiben aktualisieren |
+| `DRY_RUN` | `false` | Mit `true` geplante Schreibvorgänge nur protokollieren |
+| `REQUEST_DELAY_SECONDS` | `1.0` | Pause zwischen Anfragen |
+| `MAX_FILES_PER_RUN` | `0` | Keine Dateibegrenzung; sonst maximale Anzahl pro Lauf |
+| `SAVE_REPORT` | `true` | JSON-Bericht speichern |
+| `REPORT_PATH` | `/reports/last_report.json` | Berichtspfad im Container |
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING` oder `ERROR` |
+| `USER_AGENT` | `UGREEN-NAS-Lyrics-Downloader/1.0.3 (Roman-Glos)` | Kennung für LRCLIB-Anfragen |
+
+Für einen ersten Test kannst du `DRY_RUN=true` setzen. Dann werden weder Lyrics und Audio-Tags noch der JSON-Bericht geschrieben. Der Downloader fragt LRCLIB weiterhin ab und protokolliert die vorgesehenen Aktionen.
+
+#### Compose und Dateizugriff
+
+Die [Compose-Datei](UGREEN-NAS-Lyrics-Downloader/docker-compose.yaml) verwendet `read_only: true`, entfernt zusätzliche Linux-Capabilities und setzt `no-new-privileges`. `/tmp` liegt auf einem temporären Dateisystem. Die Bind-Mounts `/music`, `/config` und `/reports` bleiben beschreibbar; unter `/music` werden die Liedtexte abgelegt.
+
+Der Anwendungscode kommt aus dem gebauten Image. Diese Compose-Einstellungen müssen auch in deiner eigenen Projektdatei stehen, damit sie bei der Bereitstellung gelten. Sie ersetzen keine Sicherheitsupdates der enthaltenen Pakete.
+
+### Kontrolle und Fehlersuche
+
+Im Projektordner kannst du die Logs verfolgen:
 
 ```bash
 docker compose -p lyrics_downloader logs -f
 ```
 
-Typische Meldungen:
+| Log-Status | Bedeutung |
+| --- | --- |
+| `WRITTEN` | Treffer wurde mit den aktivierten Schreiboptionen verarbeitet |
+| `SKIPPED` | Datei wurde übersprungen, etwa wegen einer vorhandenen `.lrc` |
+| `NOT_FOUND` | Kein passender Liedtext gefunden |
+| `DRY_RUN` | Geplanter Schreibvorgang wurde nur protokolliert |
 
-```text
-INFO UGREEN NAS Lyrics Downloader 1.0.3 gestartet
-INFO Musikordner: /music
-INFO Suche Lyrics: Artist - Title
-INFO WRITTEN: /music/Song.mp3 - Synchronisierte LRC geschrieben
-INFO SKIPPED: /music/Song.mp3 - LRC existiert bereits
-INFO NOT_FOUND: /music/Song.mp3 - Keine Lyrics bei LRCLIB gefunden
-```
-
-## Ergebnis prüfen
-
-Nach dem Lauf sollten `.lrc`-Dateien neben den Audiodateien liegen:
+Aus `Song.mp3` wird beispielsweise `Song.lrc` im gleichen Ordner. Vorhandene Ergebnisse kannst du so anzeigen:
 
 ```bash
-find /volume1/Emby/Musik -type f -name "*.lrc" | head -50
+find /volume1/Emby/Musik -type f -name '*.lrc' | head -50
 ```
 
-Beispiel:
+Bei `SAVE_REPORT=true` enthält `reports/last_report.json` die Ergebnisse des letzten Laufs: geprüfte Dateien, geschriebene Texte, übersprungene Dateien und fehlende Treffer. Bei Zugriffsfehlern prüfst du den Host-Pfad sowie die Rechte für `PUID` und `PGID`.
 
-```text
-/volume1/Emby/Musik/Single Jahrescharts 2023/79. AYLIVA - Bei Nacht.lrc
+Nach dem Schreiben kann ein erneutes Einlesen der Mediathek oder ein Neustart der UGREEN Music App nötig sein. Eine erfolgreich geschriebene `.lrc` garantiert noch keine Anzeige in der App.
+
+### Aktualisierung
+
+Behalte deine `.env`, eigenen Mounts, Musikdateien und vorhandenen `.lrc`-Dateien. Übernimm neue Programmdateien und passende Änderungen der Compose-Konfiguration in das bestehende Projekt.
+
+Für die mitgelieferte lokale Build-Variante, im bestehenden Projektordner:
+
+```bash
+docker compose -p lyrics_downloader build --pull --no-cache ugreen_lyrics_downloader
+docker compose -p lyrics_downloader up -d ugreen_lyrics_downloader
 ```
 
-## Reports
+Verwende bei einer vorhandenen UGOS-Installation ihren tatsächlichen Projektnamen. `SCAN_INTERVAL_SECONDS=0` bleibt auch nach dem Update ein einmaliger Lauf.
 
-Wenn `SAVE_REPORT=true` gesetzt ist, wird ein JSON-Report erstellt:
+#### Vorgebaute Images
 
-```text
-reports/last_report.json
+| Quelle | Image |
+| --- | --- |
+| Docker Hub | `railsimulatornet/ugreen-nas-lyrics-downloader` |
+| GitHub Container Registry | `ghcr.io/railsimulatornet/ugreen-nas-lyrics-downloader` |
+
+Beide Quellen bieten `linux/amd64` und `linux/arm64`. Version **1.0.3** ist der feste Release-Stand; `latest` erhält geprüfte Wartungsbuilds. Deren Tags enthalten Version, Datum und Laufnummer.
+
+Für ein vorgebautes Image entfernst du den `build:`-Block aus deiner Compose-Datei und setzt `image:` auf eine dieser Quellen mit `:1.0.3` oder `:latest`. Behalte Benutzer, Umgebungsdatei, Mounts und Sicherheitsoptionen bei. Anschließend:
+
+```bash
+docker compose -p lyrics_downloader pull
+docker compose -p lyrics_downloader up -d
 ```
 
-Der Report enthält eine Übersicht über gescannte Dateien, geschriebene Lyrics, übersprungene Dateien und nicht gefundene Einträge.
+Die Veröffentlichung baut beide Architekturen einmal, prüft sie und überträgt dieselben Images in beide Registries. Behebbare HIGH- oder CRITICAL-Funde und Scanfehler blockieren die Veröffentlichung. Die vollständigen Scanberichte enthalten auch noch nicht behebbare Funde. Wöchentliche Builds überschreiben keine festen Release-Tags.
 
-## Hinweise zur UGREEN Music App
+### Projektstruktur
 
-Nach dem Erstellen der `.lrc`-Dateien kann es notwendig sein, die Mediathek in der UGREEN Music App neu einlesen zu lassen oder die App neu zu starten. Das Paket schreibt die Lyrics-Dateien in einem Standardformat direkt neben die Musikdateien. Ob und wann diese in der UGREEN Music App angezeigt werden, hängt von der Erkennung und Indexierung der App ab.
+| Pfad im Repository | Inhalt |
+| --- | --- |
+| `UGREEN-NAS-Lyrics-Downloader/` | Vollständiger Docker-Projektordner |
+| `UGREEN-NAS-Lyrics-Downloader/.env.example` | Vorlage für die eigene `.env` |
+| `UGREEN-NAS-Lyrics-Downloader/docker-compose.yaml` | Lokale Build-Konfiguration |
+| `UGREEN-NAS-Lyrics-Downloader/app/lyrics_downloader.py` | Anwendung |
+| `UGREEN-NAS-Lyrics-Downloader/config/` | Eingebundener Konfigurationsordner |
+| `UGREEN-NAS-Lyrics-Downloader/reports/` | JSON-Berichte |
 
-## Unterstützte Audioformate
+### Dokumentation
 
-Standardmäßig werden folgende Erweiterungen verarbeitet:
+- [Handbuch Deutsch/Englisch](UGREEN_NAS_Lyrics_Downloader_Handbuch_DE-EN.pdf)
+- [Änderungsverlauf](UGREEN-NAS-Lyrics-Downloader/CHANGELOG.md)
+- [Releases und Hinweise zur aktuellen Version](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/releases)
 
-```text
-.mp3, .flac, .m4a, .mp4, .ogg, .opus
+Das vorhandene DE/EN-Handbuch aus v1.0.1 bleibt unverändert. Die aktuellen Compose- und Sicherheitshinweise stehen in dieser README und in den Release Notes. Paketversion: **V1.0.3**.
+
+### Lizenz
+
+[MIT License](LICENSE) · Copyright Roman Glos 2026.
+
+## English
+
+Lyrics Downloader scans your music library, downloads matching lyrics from LRCLIB and saves synchronized `.lrc` files next to the audio files. The package is prepared for UGREEN NAS with UGOS and can also run on other Docker hosts.
+
+It helps you add lyrics to your music library and check their detection in UGREEN Music. Whether the music app displays them depends on its indexing and the available lyrics.
+
+### Features
+
+- Save synchronized lyrics as `.lrc` files beside the music files
+- Skip existing `.lrc` files
+- Optionally write plain lyrics or embedded audio tags
+- Run once or scan regularly inside the container
+- Dry-run mode, Docker logs and an optional JSON report
+- Bilingual configuration and DE/EN handbook
+- Local Docker builds and prebuilt AMD64 and ARM64 images
+
+### Requirements
+
+- Docker with Docker Compose, or the UGOS Docker app
+- Internet access to LRCLIB
+- A music library containing supported audio files
+- Appropriate `PUID` and `PGID` with write access to the music library and `reports/`
+
+The default extensions are `.mp3`, `.flac`, `.m4a`, `.mp4`, `.ogg` and `.opus`. You can add extensions through `AUDIO_EXTENSIONS`; the metadata reader must support the corresponding format.
+
+### Quick start
+
+1. Download the package from [Releases](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/releases/latest) and extract it.
+2. Use the **project directory containing `docker-compose.yaml`, `Dockerfile` and `app/`**. In the repository, this is `UGREEN-NAS-Lyrics-Downloader/`.
+3. Copy this directory to your NAS, for example to `/volume2/docker/UGREEN-NAS-Lyrics-Downloader`.
+4. Create `.env` there. An existing file is preserved:
+
+```bash
+cd /volume2/docker/UGREEN-NAS-Lyrics-Downloader
+test -f .env || cp .env.example .env
 ```
 
-Die Liste kann über `AUDIO_EXTENSIONS` in der `.env` angepasst werden.
+5. Adjust at least these values to match your music path and user:
 
-## Vorgebaute Images und Wartung
+```env
+HOST_MUSIC_DIR=/volume1/Emby/Musik
+PUID=1000
+PGID=10
+```
 
-Die Image-Namen bleiben `railsimulatornet/ugreen-nas-lyrics-downloader` auf Docker Hub und `ghcr.io/railsimulatornet/ugreen-nas-lyrics-downloader` auf GHCR. Beide Quellen bieten AMD64 und ARM64.
+6. In UGOS, open **Docker → Project → Create**, select the project directory and import its `docker-compose.yaml`.
+7. Deploy the project and check the Docker log.
 
-- `1.0.3`: feste Release-Version, die bei späteren Wartungsbuilds nicht überschrieben wird.
-- `latest`: aktueller geprüfter Build; wird zusätzlich wöchentlich frisch gebaut.
-- Wartungsbuilds erhalten automatisch Versions-, Datums- und Laufnummern.
+#### Start through SSH
 
-Ein frischer Build wird für beide Architekturen geprüft und ohne weiteren Build in beiden Registries veröffentlicht. Behebbare schwere oder kritische Funde und Scanfehler verhindern die Veröffentlichung. Der vollständige Scanbericht enthält auch noch nicht behebbare Funde.
+The supplied Compose file builds the image locally. For a new installation using the example project name `lyrics_downloader`:
 
-**Bestehende lokale Installationen:** Die Sicherheitsoptionen aus der aktuellen `docker-compose.yaml` in die eigene Compose-Datei übernehmen und den bestehenden Dienst neu erstellen. Für lokale Builds die aktuelle `Dockerfile` und die Versionsangaben auf `1.0.3` aktualisieren. Die eigene `.env`, angepasste Mounts, Musik und `.lrc`-Dateien nicht überschreiben. Bei vorgebauten Images gelten die Sicherheitsoptionen ebenfalls erst, wenn sie in der eigenen Compose-Datei stehen.
+```bash
+docker compose -p lyrics_downloader up --build
+```
 
-## Lizenz
+For an existing UGOS project, use its actual name from the container label `com.docker.compose.project`. Use that name for all following Compose commands as well; do not infer it from the directory name.
 
-Dieses Projekt steht unter der **MIT License**.
+With `SCAN_INTERVAL_SECONDS=0`, the downloader runs once and exits. For a persistent container with a daily scan, set this in `.env`:
 
-## Dokumentation
+```env
+SCAN_INTERVAL_SECONDS=86400
+```
 
-Das ausführliche deutsch-englische Handbuch liegt als PDF im Repository beziehungsweise Release-Paket bei. Das bestehende DE/EN-Handbuch aus v1.0.1 bleibt unverändert. Die neuen Sicherheitsoptionen stehen hier und in den Release Notes.
+```bash
+docker compose -p lyrics_downloader up -d --build
+```
 
-## Version
+### Configuration
 
-- Lyrics Downloader Version: **V1.0.3**
+The complete template is available in [.env.example](UGREEN-NAS-Lyrics-Downloader/.env.example). Values below match the template or are explicitly identified as examples.
 
-## English note
+| Setting | Value | Purpose |
+| --- | --- | --- |
+| `HOST_MUSIC_DIR` | `/volume1/Emby/Musik` | Example music library path on the host |
+| `PUID` / `PGID` | `1000` / `10` | User and group for file access |
+| `SCAN_INTERVAL_SECONDS` | `0` | Run once; `86400` waits one day between runs |
+| `AUDIO_EXTENSIONS` | `.mp3,.flac,.m4a,.mp4,.ogg,.opus` | File extensions to scan |
+| `REQUIRE_SYNCED_LYRICS` | `true` | Require synchronized lyrics |
+| `WRITE_PLAIN_AS_LRC` | `false` | Allow plain lyrics in `.lrc` files; also requires `REQUIRE_SYNCED_LYRICS=false` |
+| `WRITE_SIDECAR_LRC` | `true` | Write `.lrc` beside the audio file |
+| `WRITE_EMBEDDED_TAGS` | `false` | Also write lyrics into audio tags |
+| `SKIP_EXISTING_LRC` | `true` | Skip files that already have a `.lrc` |
+| `TOUCH_AUDIO_ON_WRITE` | `true` | Update the audio file's modification time after writing |
+| `DRY_RUN` | `false` | Set to `true` to log planned writes without performing them |
+| `REQUEST_DELAY_SECONDS` | `1.0` | Delay between requests |
+| `MAX_FILES_PER_RUN` | `0` | No file limit; otherwise the maximum per run |
+| `SAVE_REPORT` | `true` | Save a JSON report |
+| `REPORT_PATH` | `/reports/last_report.json` | Report path inside the container |
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING` or `ERROR` |
+| `USER_AGENT` | `UGREEN-NAS-Lyrics-Downloader/1.0.3 (Roman-Glos)` | Identification for LRCLIB requests |
 
-The **UGREEN NAS Lyrics Downloader** is a lightweight Docker package for UGREEN NAS systems running UGOS. It scans a music library, downloads matching lyrics from LRCLIB and stores synchronized `.lrc` files next to the audio files.
+For an initial test, set `DRY_RUN=true`. Lyrics, audio tags and the JSON report are then not written. The downloader still queries LRCLIB and logs the planned actions.
 
-The included Compose project still builds locally. Prebuilt AMD64 and ARM64 images remain available from Docker Hub and GHCR under the existing names. Fixed release tags are preserved; `latest` receives checked weekly rebuilds. Existing installations must retain their `.env`, customized mounts, music and `.lrc` files. For local updates, apply the new security options to the existing Compose file, retain custom mounts and `.env`, then recreate the existing service. Rebuild locally with the current Dockerfile only when needed.
+#### Compose and file access
+
+The [Compose file](UGREEN-NAS-Lyrics-Downloader/docker-compose.yaml) uses `read_only: true`, drops additional Linux capabilities and sets `no-new-privileges`. `/tmp` uses a temporary filesystem. The `/music`, `/config` and `/reports` bind mounts remain writable; lyrics are saved under `/music`.
+
+Application code comes from the built image. These Compose settings must also be present in your own project file to take effect when deployed. They do not replace security updates for the included packages.
+
+### Checks and troubleshooting
+
+Follow the logs from the project directory:
+
+```bash
+docker compose -p lyrics_downloader logs -f
+```
+
+| Log status | Meaning |
+| --- | --- |
+| `WRITTEN` | Matching lyrics were processed using the enabled write options |
+| `SKIPPED` | The file was skipped, for example because a `.lrc` already exists |
+| `NOT_FOUND` | No matching lyrics were found |
+| `DRY_RUN` | A planned write was only logged |
+
+For example, `Song.mp3` produces `Song.lrc` in the same directory. List existing results with:
+
+```bash
+find /volume1/Emby/Musik -type f -name '*.lrc' | head -50
+```
+
+With `SAVE_REPORT=true`, `reports/last_report.json` contains the latest run's results: scanned files, written lyrics, skipped files and missing matches. For access errors, check the host path and permissions for `PUID` and `PGID`.
+
+After writing lyrics, you may need to rescan the library or restart the UGREEN Music app. Successfully writing a `.lrc` does not guarantee that the app will display it.
+
+### Updating
+
+Keep your `.env`, customized mounts, music and existing `.lrc` files. Copy updated application files and relevant Compose changes into the existing project.
+
+For the supplied local build configuration, run from the existing project directory:
+
+```bash
+docker compose -p lyrics_downloader build --pull --no-cache ugreen_lyrics_downloader
+docker compose -p lyrics_downloader up -d ugreen_lyrics_downloader
+```
+
+Use the actual project name for an existing UGOS installation. `SCAN_INTERVAL_SECONDS=0` still means a single run after the update.
+
+#### Prebuilt images
+
+| Registry | Image |
+| --- | --- |
+| Docker Hub | `railsimulatornet/ugreen-nas-lyrics-downloader` |
+| GitHub Container Registry | `ghcr.io/railsimulatornet/ugreen-nas-lyrics-downloader` |
+
+Both registries provide `linux/amd64` and `linux/arm64`. Version **1.0.3** is the fixed release; `latest` receives verified maintenance builds. Their tags contain the version, date and run number.
+
+To use a prebuilt image, remove the `build:` block from your Compose file and set `image:` to one of these names with `:1.0.3` or `:latest`. Keep the user, environment file, mounts and security settings. Then run:
+
+```bash
+docker compose -p lyrics_downloader pull
+docker compose -p lyrics_downloader up -d
+```
+
+The release process builds both architectures once, checks them and copies the same images to both registries. Fixable HIGH or CRITICAL findings and scan errors block publication. Full scan reports also include findings without an available fix. Weekly builds do not overwrite fixed release tags.
+
+### Project structure
+
+| Repository path | Contents |
+| --- | --- |
+| `UGREEN-NAS-Lyrics-Downloader/` | Complete Docker project directory |
+| `UGREEN-NAS-Lyrics-Downloader/.env.example` | Template for your `.env` |
+| `UGREEN-NAS-Lyrics-Downloader/docker-compose.yaml` | Local build configuration |
+| `UGREEN-NAS-Lyrics-Downloader/app/lyrics_downloader.py` | Application |
+| `UGREEN-NAS-Lyrics-Downloader/config/` | Mounted configuration directory |
+| `UGREEN-NAS-Lyrics-Downloader/reports/` | JSON reports |
+
+### Documentation
+
+- [German/English handbook](UGREEN_NAS_Lyrics_Downloader_Handbuch_DE-EN.pdf)
+- [Changelog](UGREEN-NAS-Lyrics-Downloader/CHANGELOG.md)
+- [Releases and current version notes](https://github.com/Railsimulatornet/UGREEN-NAS-Lyrics-Downloader/releases)
+
+The existing DE/EN handbook from v1.0.1 is unchanged. Current Compose and security guidance is in this README and the release notes. Package version: **V1.0.3**.
+
+### License
+
+[MIT License](LICENSE) · Copyright Roman Glos 2026.
