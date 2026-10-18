@@ -1,4 +1,5 @@
 """Offline regression tests for version selection and scan failures."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -9,12 +10,40 @@ from unittest.mock import patch
 import release_metadata as meta
 
 ROOT = Path(__file__).parent
+FAKE_SKOPEO = r'''#!/usr/bin/env python3
+import hashlib, json, os, pathlib, sys
+args = sys.argv[1:]
+mode = os.environ['SCENARIO']
+with open(os.environ['SELECTION_CALLS'], 'a') as out: out.write(json.dumps(args) + '\n')
+if 'copy' in args:
+    if mode == 'selection-error': sys.exit(1)
+    arch = args[args.index('--override-arch') + 1]
+    if mode == 'wrong-selection': arch = 'amd64' if arch == 'arm64' else 'arm64'
+    destination = pathlib.Path(args[-1].removeprefix('oci:'))
+    destination.mkdir(parents=True)
+    config = json.dumps({'os': 'linux', 'architecture': arch}).encode()
+    digest = 'sha256:' + hashlib.sha256(config).hexdigest()
+    (destination / 'config.json').write_bytes(config)
+    (destination / 'manifest.json').write_text(json.dumps({'schemaVersion': 2, 'config': {'digest': digest}}))
+    sys.exit(0)
+if args[0] == 'inspect':
+    destination = pathlib.Path(args[-1].removeprefix('oci:'))
+    if '--raw' in args:
+        if mode == 'index-selection': print(json.dumps({'schemaVersion': 2, 'manifests': []}))
+        else: print((destination / 'manifest.json').read_text())
+    elif '--config' in args: print((destination / 'config.json').read_text())
+    else: sys.exit(2)
+    sys.exit(0)
+sys.exit(2)
+'''
 FAKE_DOCKER = r'''#!/usr/bin/env python3
 import json, os, pathlib, sys
 args = sys.argv[1:]
 with open(os.environ['CALLS'], 'a') as f: f.write(json.dumps(args) + '\n')
 mount = next(a for a in args if a.startswith('type=bind,src=') and a.endswith(',dst=/out'))
 out = pathlib.Path(mount[len('type=bind,src='):-len(',dst=/out')])
+mount = next(a for a in args if a.startswith('type=bind,src=') and a.endswith(',dst=/image,readonly'))
+image = pathlib.Path(mount[len('type=bind,src='):-len(',dst=/image,readonly')])
 mode = os.environ['SCENARIO']
 gate = '--exit-code' in args
 convert = 'convert' in args
@@ -22,7 +51,12 @@ if mode == 'scan-error' and not gate and not convert: sys.exit(1)
 if mode == 'convert-error' and convert: sys.exit(1)
 if '--output' in args and mode != 'missing-report' and not (gate and mode == 'missing-gate-report'):
     file = out / pathlib.Path(args[args.index('--output') + 1]).name
-    data = {'Metadata': {'OS': {'Family': 'debian'}}, 'Results': [{'Type': 'debian'}, {'Type': 'python-pkg'}]}
+    config = json.loads((image / 'config.json').read_text())
+    digest = json.loads((image / 'manifest.json').read_text())['config']['digest']
+    if mode == 'wrong-scan-architecture': config['architecture'] = 'amd64' if config['architecture'] == 'arm64' else 'arm64'
+    if mode == 'wrong-scan-image': digest = 'sha256:' + '0' * 64
+    data = {'Metadata': {'OS': {'Family': 'debian'}, 'ImageConfig': config, 'ImageID': digest},
+            'Results': [{'Type': 'debian'}, {'Type': 'python-pkg'}]}
     if mode == 'unknown-os': data['Metadata']['OS']['Family'] = 'unknown'
     if mode == 'missing-python': data['Results'].pop()
     file.write_text(json.dumps(data) if file.suffix == '.json' else 'fixture report\n')
@@ -84,27 +118,62 @@ class ScanTests(unittest.TestCase):
             fake = root / 'docker'
             fake.write_text(FAKE_DOCKER)
             fake.chmod(0o755)
+            skopeo = root / 'skopeo'
+            skopeo.write_text(FAKE_SKOPEO)
+            skopeo.chmod(0o755)
             image = root / 'image'
             image.mkdir()
             (image / 'index.json').write_text('{}')
             (image / 'oci-layout').write_text('{}')
+            # An unselected multi-platform input exposes its first (AMD64) image.
+            config = json.dumps({'os': 'linux', 'architecture': 'amd64'}).encode()
+            (image / 'config.json').write_bytes(config)
+            (image / 'manifest.json').write_text(json.dumps({
+                'schemaVersion': 2, 'config': {'digest': 'sha256:' + hashlib.sha256(config).hexdigest()}}))
             calls = root / 'calls'
             env = dict(os.environ, PATH=f'{root}:{os.environ["PATH"]}', CALLS=str(calls),
-                       SCENARIO=scenario, TRIVY_CACHE_DIR=str(root / 'cache'))
+                       SCENARIO=scenario, TRIVY_CACHE_DIR=str(root / 'cache'),
+                       SELECTION_CALLS=str(root / 'selections'))
             run = subprocess.run(['bash', str(ROOT / 'scan-image.sh'), str(image), platform, str(root / 'out')],
                                  env=env, capture_output=True, text=True, timeout=30)
             commands = [json.loads(x) for x in calls.read_text().splitlines()] if calls.exists() else []
-            return run, commands
+            selections = [json.loads(x) for x in (root / 'selections').read_text().splitlines()] if (root / 'selections').exists() else []
+            return run, commands, selections
 
     def test_both_platforms(self):
         for arch in ('amd64', 'arm64'):
-            run, calls = self.run_case('clean', 'linux/' + arch)
+            run, calls, selections = self.run_case('clean', 'linux/' + arch)
             self.assertEqual(run.returncode, 0, run.stderr)
             self.assertEqual(len(calls), 4)
             self.assertNotIn('--ignore-unfixed', calls[0])
             self.assertIn('--exit-code', calls[-1])
             self.assertIn('--skip-db-update', calls[-1])
             self.assertFalse(any('/var/run/docker.sock' in str(c) for c in calls))
+            copies = [call for call in selections if 'copy' in call]
+            self.assertEqual(len(copies), 1)
+            self.assertEqual(copies[0][copies[0].index('--override-arch') + 1], arch)
+            self.assertEqual(copies[0][copies[0].index('--override-os') + 1], 'linux')
+            self.assertIn('--preserve-digests', copies[0])
+            self.assertNotIn('--all', copies[0])
+            self.assertTrue(copies[0][-2].startswith('oci:'))
+            selected = copies[0][-1].removeprefix('oci:')
+            self.assertTrue(all('type=bind,src=' + selected + ',dst=/image,readonly' in call for call in calls))
+
+    def test_failed_or_wrong_platform_selection_never_scans(self):
+        for scenario in ('selection-error', 'wrong-selection', 'index-selection'):
+            for platform in ('linux/amd64', 'linux/arm64'):
+                with self.subTest(scenario=scenario, platform=platform):
+                    run, calls, _ = self.run_case(scenario, platform)
+                    self.assertNotEqual(run.returncode, 0)
+                    self.assertEqual(calls, [])
+
+    def test_scanner_must_report_selected_architecture_and_image(self):
+        for scenario in ('wrong-scan-architecture', 'wrong-scan-image'):
+            for platform in ('linux/amd64', 'linux/arm64'):
+                with self.subTest(scenario=scenario, platform=platform):
+                    run, calls, _ = self.run_case(scenario, platform)
+                    self.assertNotEqual(run.returncode, 0)
+                    self.assertEqual(len(calls), 1)
 
     def test_errors_and_findings_block(self):
         for scenario, expected in [('scan-error', 1), ('convert-error', 1), ('missing-report', 1),
