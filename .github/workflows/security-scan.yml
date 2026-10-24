@@ -125,13 +125,13 @@ jobs:
         run: bash .github/scripts/test-image-transfer.sh "$RUNNER_TEMP/lyrics-image/image.tar"
       - name: Upload AMD64 scan results
         if: ${{ always() && hashFiles('trivy-results/amd64/trivy.sarif') != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
-        uses: github/codeql-action/upload-sarif@v4.38.3
+        uses: github/codeql-action/upload-sarif@v4.39.1
         with:
           sarif_file: trivy-results/amd64/trivy.sarif
           category: lyrics-amd64
       - name: Upload ARM64 scan results
         if: ${{ always() && hashFiles('trivy-results/arm64/trivy.sarif') != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
-        uses: github/codeql-action/upload-sarif@v4.38.3
+        uses: github/codeql-action/upload-sarif@v4.39.1
         with:
           sarif_file: trivy-results/arm64/trivy.sarif
           category: lyrics-arm64
