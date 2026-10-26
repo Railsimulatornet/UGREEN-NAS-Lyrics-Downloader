@@ -14,6 +14,7 @@ from urllib.request import Request, urlopen
 OWNER = 'Railsimulatornet'
 CONFIG = {
     'autoheal': {
+        'codeql_requires_pipeline': True,
         'codeql': ('Analyze (actions)', 'Analyze (python)'),
         'pipeline': 'Docker Image',
         'jobs': ('metadata', 'security / security', 'validate'),
@@ -21,6 +22,7 @@ CONFIG = {
         'docker': ('Dockerfile',),
     },
     'schulmanager-homework-watcher': {
+        'codeql_requires_pipeline': True,
         'codeql': ('Analyze (actions)', 'Analyze (javascript-typescript)'),
         'pipeline': 'Container security scan',
         'jobs': ('build', 'trivy (amd64, ubuntu-24.04)', 'trivy (arm64, ubuntu-24.04-arm)'),
@@ -28,6 +30,7 @@ CONFIG = {
         'npm': ('package.json', 'package-lock.json', 'npm-shrinkwrap.json'),
     },
     'UGREEN-NAS-Lyrics-Downloader': {
+        'codeql_requires_pipeline': True,
         'codeql': ('Analyze (actions)', 'Analyze (python)'),
         'pipeline': 'Build and publish Docker image',
         'jobs': ('metadata', 'security / trivy'),
@@ -39,6 +42,7 @@ CONFIG = {
                 'UGREEN-NAS-Lyrics-Downloader/poetry.lock'),
     },
     'UGREEN-NAS-Syncthing-Reporter': {
+        'codeql_requires_pipeline': False,
         'codeql': ('Analyze (actions)', 'Analyze (python)'),
         'pipeline': 'Build and publish Syncthing Reporter image',
         'jobs': ('build-scan',),
@@ -261,6 +265,7 @@ def verify_candidate(api, number, config, event_sha=None):
     require_pipeline = eligible_files(family, files, config)
     if family == 'github-actions':
         enforce_codeql_alignment(api, sha)
+        require_pipeline = require_pipeline or config['codeql_requires_pipeline']
     main = api.get(f'/repos/{repo}/git/ref/heads/main')['object']['sha']
     if pr['base']['sha'] != main:
         raise Blocked('PR base snapshot is stale')
