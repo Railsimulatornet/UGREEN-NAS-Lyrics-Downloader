@@ -102,6 +102,12 @@ class PatchValidation(unittest.TestCase):
         with self.assertRaises(m.Blocked):
             m.check_codeql_patch(files)
 
+    def test_disguised_patch_prefix_is_not_skipped(self):
+        files = action_diff()
+        files[0]['patch'] += '\n+++  run: echo dangerous'
+        with self.assertRaises(m.Blocked):
+            m.check_codeql_patch(files)
+
     def test_missing_diff_blocked(self):
         files = action_diff()
         files[0]['patch'] = None
