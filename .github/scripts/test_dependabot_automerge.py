@@ -193,6 +193,17 @@ class CheckRuns(unittest.TestCase):
 
 
 class Merging(unittest.TestCase):
+    def test_expected_docker_pipeline_must_run_for_codeql_changes(self):
+        a, sha = sample_api(require_pipeline=False)
+        with self.assertRaises(m.Blocked):
+            m.verify_candidate(a, 7, m.CONFIG['autoheal'])
+
+    def test_codeql_path_filters_per_repository(self):
+        self.assertTrue(m.CONFIG['autoheal']['codeql_requires_pipeline'])
+        self.assertTrue(m.CONFIG['schulmanager-homework-watcher']['codeql_requires_pipeline'])
+        self.assertTrue(m.CONFIG['UGREEN-NAS-Lyrics-Downloader']['codeql_requires_pipeline'])
+        self.assertFalse(m.CONFIG['UGREEN-NAS-Syncthing-Reporter']['codeql_requires_pipeline'])
+
     def test_up_to_date_validates(self):
         a, sha = sample_api(require_pipeline=True)
         self.assertEqual(m.verify_candidate(a, 7, m.CONFIG['autoheal']), (sha, 'github-actions'))
