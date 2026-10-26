@@ -135,7 +135,7 @@ def check_codeql_patch(files):
             raise Blocked('Unavailable diff for CodeQL patch')
         removed, added = [], []
         for line in patch.splitlines():
-            if line.startswith(('+++', '---')) or not line.startswith(('+', '-')):
+            if not line.startswith(('+', '-')):
                 continue
             match = ACTION_RE.fullmatch(line[1:])
             if not match:
