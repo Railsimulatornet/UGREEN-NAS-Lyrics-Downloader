@@ -1,0 +1,25 @@
+name: Read-only Trivy analysis inventory
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/trivy-analysis-inventory.yml'
+
+permissions:
+  contents: read
+  security-events: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: List Trivy analyses on main without modifying alerts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/code-scanning/analyses?tool_name=Trivy&ref=refs%2Fheads%2Fmain&per_page=100" \
+            --jq '[.[] | {id, ref, category, analysis_key, created_at, commit_sha, tool: (.tool.name // .tool_name)}]'
+          echo "Read-only analysis inventory complete; no data was deleted."
