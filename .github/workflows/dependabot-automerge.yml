@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/dependabot-automerge.yml'
       - '.github/scripts/dependabot_automerge.py'
-      - '.github/scripts/test_dependabot_automerge.py'
+      - '.github/scripts/test_dependabot_automerge*.py'
   pull_request_target:
     types: [opened, reopened, synchronize]
   workflow_run:
@@ -34,18 +34,19 @@ concurrency:
 
 jobs:
   test:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
     steps:
-      - name: Checkout PR for read-only tests
+      - name: PR lesend testen; bei Zielereignissen nur den vertrauenswuerdigen Basisstand
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.base.sha || github.ref }}
           persist-credentials: false
       - name: Run regression tests
-        run: python3 -m unittest discover -s .github/scripts -p 'test_dependabot_automerge.py' -v
+        run: python3 -m unittest discover -s .github/scripts -p 'test_dependabot_automerge*.py' -v
 
   classify:
     if: >-
@@ -110,7 +111,7 @@ jobs:
           ref: main
           persist-credentials: false
       - name: Verify current gate code before privileged operation
-        run: python3 -m unittest discover -s .github/scripts -p 'test_dependabot_automerge.py' -v
+        run: python3 -m unittest discover -s .github/scripts -p 'test_dependabot_automerge*.py' -v
       - name: Check patch PRs, required checks, and versions before merge
         shell: bash
         env:
