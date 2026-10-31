@@ -1,0 +1,136 @@
+name: Historische Trivy-Befunde sichern
+
+on:
+  push:
+    branches: [maintenance/trivy-legacy-20261031]
+    paths: [.github/workflows/trivy-legacy-maintenance.yml]
+
+permissions:
+  contents: read
+  security-events: read
+
+jobs:
+  inventory:
+    if: github.repository_owner == 'Railsimulatornet'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Alle historischen Analysen und Warnungsstatus nur lesen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PYTHON'
+          """Read-only, complete paginated export before retiring one obsolete Trivy category."""
+          import collections
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          REPO = os.environ['GITHUB_REPOSITORY']
+          ALLOWED = {
+              'Railsimulatornet/schulmanager-homework-watcher': ('schulmanager-amd64', 'schulmanager-arm64'),
+              'Railsimulatornet/UGREEN-NAS-Lyrics-Downloader': ('lyrics-amd64', 'lyrics-arm64'),
+          }
+          if REPO not in ALLOWED:
+              raise SystemExit('Unexpected repository')
+          LEGACY = '.github/workflows/security-scan.yml:trivy'
+          REF = 'refs/heads/main'
+          ROOT = Path(os.environ['RUNNER_TEMP']) / 'trivy-inventory'
+          ROOT.mkdir(exist_ok=False)
+          PREFIX = '/repos/' + REPO
+          TOKEN = os.environ['GH_TOKEN']
+
+          def get(route, accept='application/vnd.github+json'):
+              if not route.startswith(PREFIX + '/'):
+                  raise RuntimeError('Unexpected API route')
+              req = Request('https://api.github.com' + route, headers={
+                  'Authorization': 'Bearer ' + TOKEN,
+                  'Accept': accept,
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'User-Agent': 'trivy-legacy-inventory-20261031',
+              })
+              with urlopen(req, timeout=45) as response:
+                  return json.load(response)
+
+          def pages(route):
+              result = []
+              for page in range(1, 51):
+                  chunk = get(route + ('&' if '?' in route else '?') + urlencode({'per_page': 100, 'page': page}))
+                  if not isinstance(chunk, list):
+                      raise RuntimeError('Unexpected pagination response')
+                  result.extend(chunk)
+                  if len(chunk) < 100:
+                      return result
+              raise RuntimeError('Pagination cap reached; export incomplete')
+
+          def save(name, value):
+              file = ROOT / name
+              file.parent.mkdir(parents=True, exist_ok=True)
+              file.write_text(json.dumps(value, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+          main = get(PREFIX + '/git/ref/heads/main')['object']['sha']
+          analyses = pages(PREFIX + '/code-scanning/analyses?' + urlencode({'tool_name': 'Trivy', 'ref': REF}))
+          save('analyses-main.json', analyses)
+          legacy = [a for a in analyses if a.get('ref') == REF and a.get('tool', {}).get('name') == 'Trivy'
+                    and a.get('category') == LEGACY and a.get('analysis_key') == LEGACY]
+          latest = {}
+          for category in ALLOWED[REPO]:
+              matches = [a for a in analyses if a.get('category') == category and a.get('ref') == REF]
+              if matches:
+                  latest[category] = max(matches, key=lambda a: (a['created_at'], a['id']))
+
+          reports = []
+          for analysis in legacy:
+              ident = int(analysis['id'])
+              sarif = get(PREFIX + '/code-scanning/analyses/' + str(ident), 'application/sarif+json')
+              if sarif.get('version') != '2.1.0' or not isinstance(sarif.get('runs'), list):
+                  raise RuntimeError('Invalid SARIF export')
+              save('legacy-sarif/' + str(ident) + '.sarif', sarif)
+              reports.append({'id': ident, 'created_at': analysis['created_at'],
+                              'results': sum(len(run.get('results', [])) for run in sarif['runs'])})
+
+          alerts = pages(PREFIX + '/code-scanning/alerts?' + urlencode({'tool_name': 'Trivy', 'ref': REF}))
+          save('alerts-main-all-states.json', alerts)
+          legacy_alerts = []
+          for alert in alerts:
+              number = int(alert['number'])
+              detail = get(PREFIX + '/code-scanning/alerts/' + str(number))
+              instances = pages(PREFIX + '/code-scanning/alerts/' + str(number) + '/instances')
+              save('alerts/' + str(number) + '.json', {'detail': detail, 'instances': instances})
+              old_instances = [i for i in instances if i.get('ref') == REF and i.get('category') == LEGACY
+                               and i.get('analysis_key') == LEGACY]
+              if old_instances:
+                  legacy_alerts.append({'number': number, 'state': alert['state'], 'rule': alert['rule']['id'],
+                                        'instances': old_instances})
+
+          summary = {
+              'repository': REPO, 'main_sha': main, 'run_id': os.environ['GITHUB_RUN_ID'],
+              'legacy_category': LEGACY, 'legacy_analyses': reports,
+              'current_categories': {k: {f: a.get(f) for f in ('id', 'commit_sha', 'created_at', 'error', 'results_count', 'rules_count')}
+                                     for k, a in latest.items()},
+              'total_alerts': len(alerts), 'alert_states': dict(collections.Counter(a['state'] for a in alerts)),
+              'legacy_alerts': legacy_alerts,
+              'legacy_open_alerts': [a['number'] for a in legacy_alerts
+                                     if a['state'] == 'open' or any(i.get('state') == 'open' for i in a['instances'])],
+              'read_only': True,
+          }
+          save('summary.json', summary)
+          manifest = ''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.relative_to(ROOT).as_posix() + '\n'
+                             for p in sorted(ROOT.rglob('*')) if p.is_file())
+          (ROOT / 'SHA256SUMS.txt').write_text(manifest, encoding='utf-8')
+          print(json.dumps(summary, ensure_ascii=False))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as out:
+              out.write('## Historische Trivy-Bestandsaufnahme\n\n```json\n' + json.dumps(summary, indent=2, ensure_ascii=False) + '\n```\n')
+          PYTHON
+      - name: Vollstaendige Sicherung mit Pruefsummen aufbewahren
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-legacy-inventory-${{ github.run_id }}
+          path: ${{ runner.temp }}/trivy-inventory/
+          if-no-files-found: error
+          retention-days: 90
