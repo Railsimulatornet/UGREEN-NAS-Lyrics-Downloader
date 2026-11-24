@@ -67,7 +67,8 @@ if gate and mode in ('findings', 'eol', 'gate-error'): sys.exit({'findings':42, 
 class MetadataTests(unittest.TestCase):
     def data(self, **changes):
         args = dict(version='1.0.2', event='push', ref='refs/heads/main', repository=meta.REPOSITORY,
-                    tag_exists=False, day='20260927', run='10', attempt='1')
+                    tag_exists=False, day='20260927', run='10', attempt='1',
+                    paths=['UGREEN-NAS-Lyrics-Downloader/app/lyrics_downloader.py'])
         args.update(changes)
         return meta.make_metadata(**args)
 
