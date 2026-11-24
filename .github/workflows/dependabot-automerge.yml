@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/dependabot-automerge.yml'
       - '.github/scripts/dependabot_automerge.py'
+      - '.github/scripts/patch_policy.py'
       - '.github/scripts/test_dependabot_automerge*.py'
   pull_request_target:
     types: [opened, reopened, synchronize]

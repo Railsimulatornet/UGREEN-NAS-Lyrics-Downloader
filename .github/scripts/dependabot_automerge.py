@@ -7,6 +7,8 @@ import json
 import os
 import re
 import sys
+
+import patch_policy
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -248,6 +250,31 @@ def verify_checks(api, head, config, require_pipeline):
         raise Blocked('Pending/failing legacy commit status')
 
 
+def verify_actual_patch(api, pr, family, files):
+    """A label only selects candidates; immutable file contents prove the update."""
+    paths = [file['filename'] for file in files]
+    if family == 'npm':
+        supported = {'package.json', 'package-lock.json'}
+        if not set(paths).issubset(supported):
+            raise Blocked('Unsupported npm manifest layout')
+        for ref in (pr['base']['sha'], pr['head']['sha']):
+            root = api.get(f'/repos/{api.repo}/contents?ref={ref}')
+            if not isinstance(root, list) or any(file.get('name') == 'npm-shrinkwrap.json' for file in root):
+                raise Blocked('An overriding npm manifest cannot be verified')
+        paths = sorted(supported)
+    before = {path: api.file(path, pr['base']['sha']) for path in paths}
+    after = {path: api.file(path, pr['head']['sha']) for path in paths}
+    try:
+        if family == 'github-actions':
+            cache = {}
+            patch_policy.verify_codeql(before, after, pr.get('body', ''),
+                                       lambda version: tag_sha(api, version, cache))
+        else:
+            patch_policy.verify(family, before, after)
+    except patch_policy.Rejected as error:
+        raise Blocked(str(error)) from error
+
+
 def verify_candidate(api, number, config, event_sha=None):
     repo = api.repo
     pr = api.get(f'/repos/{repo}/pulls/{int(number)}')
@@ -274,6 +301,7 @@ def verify_candidate(api, number, config, event_sha=None):
         raise Blocked('Dependabot branch needs rebase onto current main')
     if pr.get('mergeable') is not True or pr.get('mergeable_state') not in ('clean', 'unstable'):
         raise Blocked('PR not proven mergeable')
+    verify_actual_patch(api, pr, family, files)
     verify_checks(api, sha, config, require_pipeline)
     return sha, family
 
