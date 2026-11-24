@@ -117,9 +117,14 @@ jobs:
           TRIVY_IMAGE="$(docker image inspect ghcr.io/aquasecurity/trivy:latest --format '{{.Id}}')"
           [[ "$TRIVY_IMAGE" =~ ^sha256:[a-f0-9]{64}$ ]]
           export TRIVY_IMAGE
+          scan_failed=0
           for arch in amd64 arm64; do
-            bash .github/scripts/scan-image.sh "$RUNNER_TEMP/lyrics-layout" "linux/$arch" "$PWD/trivy-results/$arch"
+            if ! bash .github/scripts/scan-image.sh "$RUNNER_TEMP/lyrics-layout" "linux/$arch" "$PWD/trivy-results/$arch"; then
+              echo "::error::Security scan failed for linux/$arch."
+              scan_failed=1
+            fi
           done
+          exit "$scan_failed"
       - name: Verify multi-platform registry round trip
         shell: bash
         run: bash .github/scripts/test-image-transfer.sh "$RUNNER_TEMP/lyrics-image/image.tar"
