@@ -17,12 +17,13 @@ class DummyAPI:
                 'uses: github/codeql-action/upload-sarif@v4.39.1\n'),
             '.github/workflows/docker-publish.yml': 'name: Docker Image\n',
         }
+        self.revisions = {}
         self.data = {}
         self.lists = {}
         self.calls = []
 
     def file(self, path, ref):
-        return self.files[path]
+        return self.revisions[(path, ref)] if (path, ref) in self.revisions else self.files[path]
 
     def get(self, path):
         self.calls.append(('GET', path))
@@ -50,6 +51,7 @@ def action_diff(before='v4.39.0', after='v4.39.1', kind='upload-sarif', path='.g
 
 def sample_api(require_pipeline=False):
     a = DummyAPI()
+    a.revisions[('.github/workflows/security-scan.yml', 'b' * 40)] = 'uses: github/codeql-action/upload-sarif@v4.39.0\n'
     head = 'h' * 40
     name = 'Railsimulatornet/autoheal'
     a.lists[f'/repos/{name}/actions/runs?event=pull_request&head_sha={head}'] = [
@@ -193,6 +195,27 @@ class CheckRuns(unittest.TestCase):
 
 
 class Merging(unittest.TestCase):
+    def test_actual_docker_patch_passes(self):
+        a, sha = sample_api(require_pipeline=True)
+        a.data[f'/repos/{a.repo}/pulls/7']['labels'] = [{'name': 'automerge:patch:docker'}]
+        a.lists[f'/repos/{a.repo}/pulls/7/files'] = [{'filename': 'Dockerfile', 'status': 'modified'}]
+        a.files['Dockerfile'] = 'FROM alpine:3.24.2\n'
+        a.revisions[('Dockerfile', 'b' * 40)] = 'FROM alpine:3.24.1\n'
+        self.assertEqual(m.verify_candidate(a, 7, m.CONFIG['autoheal']), (sha, 'docker'))
+
+    def test_stale_label_and_misleading_diff_cannot_authorize_nonpatch(self):
+        for version in ('3.25.0', '4.0.0'):
+            a, sha = sample_api(require_pipeline=True)
+            a.data[f'/repos/{a.repo}/pulls/7']['labels'] = [{'name': 'automerge:patch:docker'}]
+            a.lists[f'/repos/{a.repo}/pulls/7/files'] = [{
+                'filename': 'Dockerfile', 'status': 'modified',
+                'patch': '@@ -1 +1 @@\n-FROM alpine:3.24.1\n+FROM alpine:3.24.2'}]
+            a.files['Dockerfile'] = 'FROM alpine:' + version + '\n'
+            a.revisions[('Dockerfile', 'b' * 40)] = 'FROM alpine:3.24.1\n'
+            with self.subTest(version=version), self.assertRaises(m.Blocked):
+                m.merge_candidate(a, 7, m.CONFIG['autoheal'], False)
+            self.assertFalse(any(call[0] == 'PUT' for call in a.calls))
+
     def test_expected_docker_pipeline_must_run_for_codeql_changes(self):
         a, sha = sample_api(require_pipeline=False)
         with self.assertRaises(m.Blocked):
