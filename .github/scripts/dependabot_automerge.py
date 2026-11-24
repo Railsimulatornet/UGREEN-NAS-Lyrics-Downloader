@@ -29,6 +29,7 @@ CONFIG = {
         'pipeline': 'Container security scan',
         'jobs': ('build', 'trivy (amd64, ubuntu-24.04)', 'trivy (arm64, ubuntu-24.04-arm)'),
         'dispatch': 'security-scan.yml',
+        'dispatch_publish': True,
         'npm': ('package.json', 'package-lock.json', 'npm-shrinkwrap.json'),
     },
     'UGREEN-NAS-Lyrics-Downloader': {
@@ -245,7 +246,12 @@ def verify_checks(api, head, config, require_pipeline):
             continue
         raise Blocked(f"Unsuccessful/non-verifiable check: {check['name']} ({conclusion})")
 
-    statuses = api.get(f'/repos/{api.repo}/commits/{head}/status').get('statuses', [])
+    legacy = api.get(f'/repos/{api.repo}/commits/{head}/status?per_page=100')
+    statuses = legacy.get('statuses')
+    if (legacy.get('sha') != head or not isinstance(statuses, list)
+            or type(legacy.get('total_count')) is not int
+            or legacy['total_count'] != len(statuses)):
+        raise Blocked('Legacy commit statuses are incomplete or belong to another commit')
     if any(s.get('state') != 'success' for s in statuses):
         raise Blocked('Pending/failing legacy commit status')
 
@@ -303,28 +309,39 @@ def verify_candidate(api, number, config, event_sha=None):
         raise Blocked('PR not proven mergeable')
     verify_actual_patch(api, pr, family, files)
     verify_checks(api, sha, config, require_pipeline)
-    return sha, family
+    return sha, family, main
 
 
 def merge_candidate(api, number, config, dry_run, event_sha=None):
-    sha, family = verify_candidate(api, number, config, event_sha)
+    sha, family, verified_main = verify_candidate(api, number, config, event_sha)
     if dry_run:
         print(f'PASS DRY-RUN #{number}: verified {sha}, family={family}')
         return
     current = api.get(f'/repos/{api.repo}/git/ref/heads/main')['object']['sha']
     pr = api.get(f'/repos/{api.repo}/pulls/{int(number)}')
-    if pr['head']['sha'] != sha or pr['base']['sha'] != current:
+    if pr['head']['sha'] != sha or pr['base']['sha'] != verified_main or current != verified_main:
         raise Blocked('PR/base moved before merge')
     result = api.request(f'/repos/{api.repo}/pulls/{int(number)}/merge', 'PUT',
                          {'sha': sha, 'merge_method': 'squash'})
     if not result or not result.get('merged'):
         raise RuntimeError('GitHub did not confirm merge')
-    print(f'MERGED #{number}: {result["sha"]} ({family})')
+    merged_sha = result.get('sha')
+    if not isinstance(merged_sha, str) or not re.fullmatch(r'[0-9a-f]{40}', merged_sha):
+        raise RuntimeError('GitHub did not return a valid merge commit')
+    current = api.get(f'/repos/{api.repo}/git/ref/heads/main')['object']['sha']
+    if current != merged_sha:
+        raise RuntimeError('Main advanced after merge; post-merge checks need attention')
+    print(f'MERGED #{number}: {merged_sha} ({family})')
     # Explicit dispatch: GITHUB_TOKEN merges do not fire push-triggered workflows.
     # Never dispatch a publication workflow for a CI-only CodeQL update.
-    workflow = 'codeql.yml' if family == 'github-actions' else config['dispatch']
-    api.request(f'/repos/{api.repo}/actions/workflows/{workflow}/dispatches', 'POST', {'ref': 'main'})
-    print(f'DISPATCHED post-merge {workflow} on main')
+    workflows = ('codeql.yml',) if family == 'github-actions' else (config['dispatch'], 'codeql.yml')
+    for workflow in workflows:
+        inputs = {'expected_sha': merged_sha}
+        if workflow == config['dispatch'] and config.get('dispatch_publish', False):
+            inputs['publish'] = True
+        api.request(f'/repos/{api.repo}/actions/workflows/{workflow}/dispatches', 'POST',
+                    {'ref': 'main', 'inputs': inputs})
+        print(f'DISPATCHED post-merge {workflow} on main')
 
 
 def choose_prs(api, event):
@@ -366,3 +383,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
