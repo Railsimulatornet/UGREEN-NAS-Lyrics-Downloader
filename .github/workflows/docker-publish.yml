@@ -11,6 +11,11 @@ on:
     # Samstag UTC: vor dem NAS-Wartungsfenster am Sonntag um 06:00 Uhr.
     - cron: '53 3 * * 6'
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Require this exact commit for an automated post-merge check
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -31,10 +36,21 @@ jobs:
       publish: ${{ steps.meta.outputs.publish }}
       tag: ${{ steps.meta.outputs.tag }}
     steps:
+      - name: Verify requested source commit
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -Eeuo pipefail
+          if [[ -n "$EXPECTED_SHA" ]]; then
+            [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]]
+            [[ "$GITHUB_SHA" == "$EXPECTED_SHA" ]]
+          fi
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - name: Read release and build metadata
         id: meta
@@ -62,6 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/download-artifact@v8
         with:
@@ -96,6 +113,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/download-artifact@v8
         with:
@@ -123,3 +141,4 @@ jobs:
               "$RUNNER_TEMP/lyrics-release/UGREEN_NAS_Lyrics_Downloader_Handbuch_DE-EN.pdf" \
               "$RUNNER_TEMP/lyrics-release/SHA256SUMS.txt"
           fi
+
